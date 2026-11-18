@@ -1,0 +1,6 @@
+{
+  "name": "string-paddr",
+  "version": "2.4.0",
+  "main": "index.js",
+  "publishConfig": { "registry": "http://127.0.0.1:4874/" }
+}

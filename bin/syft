@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")/.."
+mkdir -p .lab/syft-cache
+exec docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" -v "$PWD/.lab/syft-cache:/cache" -w /work \
+  -e XDG_CACHE_HOME=/cache \
+  anchore/syft@sha256:e97e20b6e6d1699c60296b66ab337941724f9bd06ac279d893eda89601fc4b2a "$@"
+

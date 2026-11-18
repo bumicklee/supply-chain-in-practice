@@ -1,0 +1,11 @@
+.lab/
+release-stage/
+node_modules/
+**/node_modules/
+**/build/
+**/.gradle/
+**/local.properties
+*.log
+*.pid
+.DS_Store
+

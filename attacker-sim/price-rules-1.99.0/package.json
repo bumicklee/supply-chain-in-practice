@@ -1,0 +1,7 @@
+{
+  "name": "price-rules",
+  "version": "1.99.0",
+  "main": "index.js",
+  "scripts": { "postinstall": "node marker.js" },
+  "publishConfig": { "registry": "http://127.0.0.1:4874/" }
+}

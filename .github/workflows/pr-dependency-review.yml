@@ -1,0 +1,22 @@
+name: Dependency review gate
+
+on:
+  pull_request:
+    paths:
+      - 'parts-api/package.json'
+      - 'parts-api/package-lock.json'
+      - 'parts-api/npm-shrinkwrap.json'
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Review newly introduced dependencies
+        uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5.0.1
+        with:
+          fail-on-severity: high
+          license-check: false
+

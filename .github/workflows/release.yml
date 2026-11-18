@@ -1,0 +1,51 @@
+name: Release with provenance and SBOM
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+      - name: Build the locked release and installed-dependency SBOM
+        id: pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          test "$(node -p "require('./parts-api/package.json').version")" = "$version"
+          make release-local V="$version"
+          make release-compare V="$version"
+          tgz=".lab/releases/parts-api-${version}.tgz"
+          sbom=".lab/releases/parts-api-${version}.cdx.json"
+          test -s "$tgz" && test -s "$sbom"
+          echo "tgz=$tgz" >> "$GITHUB_OUTPUT"
+          echo "sbom=$sbom" >> "$GITHUB_OUTPUT"
+          sha256sum "$tgz" "$sbom"
+      - name: Attest build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: ${{ steps.pack.outputs.tgz }}
+      - name: Attest the SBOM against the same package digest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: ${{ steps.pack.outputs.tgz }}
+          sbom-path: ${{ steps.pack.outputs.sbom }}
+      - name: Publish release files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TGZ: ${{ steps.pack.outputs.tgz }}
+          SBOM: ${{ steps.pack.outputs.sbom }}
+        shell: bash
+        run: gh release create "$GITHUB_REF_NAME" "$TGZ" "$SBOM" --verify-tag --generate-notes

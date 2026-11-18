@@ -1,0 +1,10 @@
+node=22.21.1
+verdaccio=6.11.2
+verdaccio_digest=sha256:9ba07c347022a7fb4bc34ffbf12d86c9670dcfa28ac424a79bec20d61e688a98
+docker_tested=27.5.1
+syft=1.57.2
+syft_digest=sha256:e97e20b6e6d1699c60296b66ab337941724f9bd06ac279d893eda89601fc4b2a
+grype=0.122.0
+grype_digest=sha256:013e16ae96bd64108973e3e9fecec63f7ff276358d34c46c25d33e2aac96539f
+grype_db_built=2026-11-18T06:21:08Z
+

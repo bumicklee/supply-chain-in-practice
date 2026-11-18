@@ -1,0 +1,22 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://example.invalid/vex/parts-api-1.1.0",
+  "author": "parts-api security team",
+  "timestamp": "2026-11-18T00:00:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": { "name": "GHSA-35jh-r3h4-6jhm" },
+      "products": [
+        {
+          "@id": "pkg:generic/parts-api@1.1.0",
+          "subcomponents": [{ "@id": "pkg:npm/lodash@4.17.20" }]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "2026-11-18 확인: parts-api/src는 lodash.trim만 호출하고 template 호출이 없으며 npm ls에서 lodash를 끌어오는 다른 의존성도 없다. 이 판단은 이 버전과 현재 코드에만 적용한다.",
+      "x_lab_check_symbol": "template"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "string-padder",
+  "version": "2.4.1",
+  "main": "index.js",
+  "scripts": { "postinstall": "node marker.js" },
+  "publishConfig": { "registry": "http://127.0.0.1:4874/" }
+}

@@ -1,0 +1,110 @@
+name: scl
+services:
+  verdaccio-public:
+    image: verdaccio/verdaccio:6@sha256:9ba07c347022a7fb4bc34ffbf12d86c9670dcfa28ac424a79bec20d61e688a98
+    container_name: scl-verdaccio-public
+    ports:
+      - 127.0.0.1:4874:4873
+    volumes:
+      - ./registries/verdaccio-public/config.yaml:/verdaccio/conf/config.yaml:ro
+      - public-data:/verdaccio/storage
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:4873/-/ping]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  verdaccio-internal:
+    image: verdaccio/verdaccio:6@sha256:9ba07c347022a7fb4bc34ffbf12d86c9670dcfa28ac424a79bec20d61e688a98
+    container_name: scl-verdaccio-internal
+    depends_on:
+      verdaccio-public:
+        condition: service_healthy
+    ports:
+      - 127.0.0.1:4873:4873
+    volumes:
+      - ./registries/verdaccio-internal/config.yaml:/verdaccio/conf/config.yaml:ro
+      - ./tools/scope_cache_clear.mjs:/work/tools/scope_cache_clear.mjs:ro
+      - ./tools/swap_tarball.mjs:/work/tools/swap_tarball.mjs:ro
+      - internal-data:/verdaccio/storage
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:4873/-/ping]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  collector:
+    image: node:22.21.1-alpine@sha256:0340fa682d72068edf603c305bfbc10e23219fb0e40df58d9ea4d6f33a9798bf
+    container_name: scl-collector
+    command: [node, /work/tools/collector.mjs]
+    ports:
+      - 127.0.0.1:4880:4880
+    volumes:
+      - ./tools/collector.mjs:/work/tools/collector.mjs:ro
+      - ./.lab:/work/.lab
+    working_dir: /work
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:4880/health]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  dt-apiserver:
+    profiles: [dt]
+    image: dependencytrack/apiserver:4.14.5@sha256:4d41f29ce886a7fcb94a424b3eb2bfd17497ba92d48d43896c48e87a69bcf335
+    container_name: scl-dt-apiserver
+    ports:
+      - 127.0.0.1:8181:8080
+    environment:
+      EXTRA_JAVA_OPTIONS: -Xmx2g
+      ALPINE_CORS_ENABLED: 'true'
+      ALPINE_CORS_ALLOW_ORIGIN: http://127.0.0.1:8180
+      ALPINE_CORS_ALLOW_METHODS: GET,POST,PUT,DELETE,OPTIONS
+      ALPINE_CORS_ALLOW_HEADERS: Origin,Content-Type,Authorization,X-Requested-With,Content-Length,Accept,X-Api-Key,X-Total-Count
+      ALPINE_CORS_EXPOSE_HEADERS: X-Total-Count
+      ALPINE_ANALYZER_INTERNAL_ENABLED: 'true'
+    volumes:
+      - dt-data:/data
+    mem_limit: 4g
+  dt-frontend:
+    profiles: [dt]
+    image: dependencytrack/frontend:4.14.5@sha256:d675efbd80facddb696c21c82e1973d0dc83ae38b3c896d1c87bf78a26a6c9eb
+    container_name: scl-dt-frontend
+    depends_on:
+      - dt-apiserver
+    ports:
+      - 127.0.0.1:8180:8080
+    environment:
+      API_BASE_URL: http://127.0.0.1:8181
+  maven-internal:
+    profiles: [maven]
+    image: node:22.21.1-alpine@sha256:0340fa682d72068edf603c305bfbc10e23219fb0e40df58d9ea4d6f33a9798bf
+    container_name: scl-maven-internal
+    command: [node, /work/tools/maven_server.mjs, /work/.lab/maven-internal, '8081']
+    ports:
+      - 127.0.0.1:8081:8081
+    volumes:
+      - ./tools/maven_server.mjs:/work/tools/maven_server.mjs:ro
+      - ./.lab:/work/.lab:ro
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:8081/health]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  maven-public:
+    profiles: [maven]
+    image: node:22.21.1-alpine@sha256:0340fa682d72068edf603c305bfbc10e23219fb0e40df58d9ea4d6f33a9798bf
+    container_name: scl-maven-public
+    command: [node, /work/tools/maven_server.mjs, /work/.lab/maven-public, '8082']
+    ports:
+      - 127.0.0.1:8082:8082
+    volumes:
+      - ./tools/maven_server.mjs:/work/tools/maven_server.mjs:ro
+      - ./.lab:/work/.lab:ro
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:8082/health]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+volumes:
+  public-data:
+  internal-data:
+  dt-data:
+

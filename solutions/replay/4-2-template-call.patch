@@ -1,0 +1,13 @@
+diff --git a/parts-api/src/app.js b/parts-api/src/app.js
+--- a/parts-api/src/app.js
++++ b/parts-api/src/app.js
+@@ -26,7 +26,8 @@ app.post('/quote', (request, response) => {
+     return response.status(400).json({ error: 'invalid quote input' });
+   }
+   const amount = priceRules.price(1000, quantity);
+-  return response.json({ sku: lodash.trim(sku), amount, display: stringPadder.pad(amount) });
++  const displaySku = lodash.template('<%= sku %>')({ sku });
++  return response.json({ sku: displaySku, amount, display: stringPadder.pad(amount) });
+ });
+ 
+ module.exports = app;

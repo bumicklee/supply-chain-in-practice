@@ -1,0 +1,27 @@
+name: Dependency review comment
+
+# This privileged job only calls GitHub's dependency review API. It never checks out
+# or executes pull request code, including code from forks.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'parts-api/package.json'
+      - 'parts-api/package-lock.json'
+      - 'parts-api/npm-shrinkwrap.json'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarize dependency changes in the pull request
+        uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5.0.1
+        with:
+          fail-on-severity: high
+          license-check: false
+          warn-only: true
+          comment-summary-in-pr: always
