@@ -1,4 +1,5 @@
 .DEFAULT_GOAL := help
+DT_WAIT_SECONDS ?= 900
 .PHONY: help doctor up down status seed seed-release release-fixtures attack attack-undo scope-cache-clear collector-log collector-clear markers grype-db sbom ntia-check triage-check vex-lint pack-matrix vendor vendor-check release-local release-compare deploy verify-offline dt-up dt-down dt-status dt-key dt-upload dt-report dt-new-vuln pr-gate-local maven-up maven-down
 
 help:
@@ -87,7 +88,7 @@ verify-offline:
 
 dt-up:
 	@docker compose --profile dt up -d dt-apiserver dt-frontend collector
-	@node tools/wait_http.mjs http://127.0.0.1:8181/api/version 360
+	@node tools/wait_http.mjs http://127.0.0.1:8181/api/version '$(DT_WAIT_SECONDS)'
 	@printf 'Dependency-Track: http://127.0.0.1:8180/\n'
 
 dt-down:
