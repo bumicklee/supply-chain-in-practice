@@ -1,6 +1,6 @@
 {
   "name": "parts-api",
-  "version": "1.2.0",
+  "version": "1.2.0-rc.1",
   "private": false,
   "description": "Supply chain security course lab API",
   "main": "src/app.js",
