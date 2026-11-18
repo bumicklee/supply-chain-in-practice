@@ -1,0 +1,36 @@
+name: Lab other workflow attestation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+jobs:
+  other:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+      - name: Build a distinct lab artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e "const fs=require('fs'); for (const name of ['package.json','package-lock.json']) { const path='parts-api/'+name; const data=JSON.parse(fs.readFileSync(path,'utf8')); data.version='1.2.0-other'; if(data.packages?.['']) data.packages[''].version=data.version; fs.writeFileSync(path,JSON.stringify(data,null,2)+'\n'); }"
+          make release-local V=1.2.0-other
+          make release-compare V=1.2.0-other
+          sha256sum .lab/releases/parts-api-1.2.0-other.tgz
+      - name: Attest from this distinct workflow
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: .lab/releases/parts-api-1.2.0-other.tgz
+      - name: Save the lab artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: lab-other-workflow
+          path: .lab/releases/parts-api-1.2.0-other.tgz
+          if-no-files-found: error
