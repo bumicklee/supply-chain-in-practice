@@ -48,4 +48,8 @@ jobs:
           TGZ: ${{ steps.pack.outputs.tgz }}
           SBOM: ${{ steps.pack.outputs.sbom }}
         shell: bash
-        run: gh release create "$GITHUB_REF_NAME" "$TGZ" "$SBOM" --verify-tag --generate-notes
+        run: |
+          set -euo pipefail
+          flags=()
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then flags+=(--prerelease --latest=false); fi
+          gh release create "$GITHUB_REF_NAME" "$TGZ" "$SBOM" --verify-tag --generate-notes "${flags[@]}"
