@@ -23,9 +23,13 @@ Docker, Node.js 22, npm, make, jq, curl이 필요합니다. Gradle 수업은 JDK
 | 5-1 | `make dt-up`, `make dt-upload V=1.0.0 SBOM=<파일>` | Dependency-Track의 버전별 프로젝트와 정책 |
 | 5-2 | `make pr-gate-local BASE=<기준커밋> HEAD=<후보커밋>` | GitHub 없이도 Critical 신규 의존성 실패·수정 통과 |
 | 6-1~6-2 | `make maven-up`, `gradle-lib/`, `solutions/6-1-before.settings.gradle.kts` | 저장소 선택과 Gradle 검증 메타데이터 |
-| 7-1~7-2 | `make vendor`, `make vendor-check`, `make release-local V=<버전>`, `make deploy TGZ=<파일> TAG=<태그>` | tarball·SBOM·증명과 배포 전 검증 |
+| 7-1~7-2 | `make vendor`, `make vendor-check`, `make release-local V=<버전>`, `make deploy TGZ=<파일> TAG=<태그>`, `make verify-offline` | tarball·SBOM·증명과 배포 전 검증 |
 
 6-3 Android 수업의 소스와 미리 빌드한 결과물은 공개 범위 검토 전까지 이 저장소에 포함하지 않습니다. GitHub 경로에서는 공개 포크의 PR 검사와 태그 릴리스를 사용합니다. 계정이 없으면 로컬 관문과 `make release-local`까지 수행할 수 있습니다. 로컬 릴리스에는 GitHub 출처 증명이 붙지 않습니다.
+
+`make verify-offline`은 이 저장소에 포함된 공식 실습 릴리스 `v1.1.0`의 tgz, 증명 번들, Sigstore 신뢰 루트로 출처와 CycloneDX SBOM 증명을 검사합니다. GitHub 로그인과 네트워크가 필요하지 않습니다. 다른 파일을 시험하려면 `TGZ=<파일>`을 지정하세요. 신뢰 루트는 2026-11-19에 받아 둔 시점의 자료이므로 장기간 보관한 뒤 새 증명을 검증할 때는 갱신해야 합니다. 오프라인 번들은 증명 당시 저장소 이름을 확인하지만 이후 이름 변경 여부를 조회하지 않습니다.
+
+`v1.2.0` 통합 실측에서는 PR의 신규 `minimist` 취약점이 막히고 수정 후 릴리스·배포 검증은 통과했습니다. Dependency-Track은 기존 `lodash 4.17.20`과 내부 `@parts/price-rules 1.2.0`에 대해 Critical 정책 FAIL 2건을 표시했습니다. 배포 검증 성공은 취약점 정책 통과를 뜻하지 않습니다.
 
 레지스트리와 공격 재연은 내 PC의 `127.0.0.1`에서 실행합니다. `npm publish`를 실행할 때는 반드시 `--registry http://127.0.0.1:4873/` 또는 `--registry http://127.0.0.1:4874/`를 명시하세요. 실제 npmjs와 Maven Central에는 실습 패키지를 게시하지 않습니다.
 

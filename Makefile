@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help doctor up down status seed seed-release release-fixtures attack attack-undo scope-cache-clear collector-log collector-clear markers grype-db sbom ntia-check triage-check vex-lint pack-matrix vendor vendor-check release-local release-compare deploy dt-up dt-down dt-status dt-key dt-upload dt-new-vuln pr-gate-local maven-up maven-down
+.PHONY: help doctor up down status seed seed-release release-fixtures attack attack-undo scope-cache-clear collector-log collector-clear markers grype-db sbom ntia-check triage-check vex-lint pack-matrix vendor vendor-check release-local release-compare deploy verify-offline dt-up dt-down dt-status dt-key dt-upload dt-report dt-new-vuln pr-gate-local maven-up maven-down
 
 help:
 	@printf 'make doctor | up | down | status | seed | attack A=<이름> | collector-log | collector-clear | markers\n'
@@ -82,6 +82,9 @@ release-compare:
 deploy:
 	@sh parts-api/scripts/deploy.sh '$(TGZ)' '$(TAG)'
 
+verify-offline:
+	@sh tools/verify_offline.sh '$(TGZ)' '$(BUNDLE)' '$(ROOT)'
+
 dt-up:
 	@docker compose --profile dt up -d dt-apiserver dt-frontend collector
 	@node tools/wait_http.mjs http://127.0.0.1:8181/api/version 360
@@ -98,6 +101,9 @@ dt-key:
 
 dt-upload:
 	@node tools/dt_upload.mjs '$(V)' '$(SBOM)'
+
+dt-report:
+	@node tools/dt_report.mjs
 
 dt-new-vuln:
 	@node tools/dt_new_vuln.mjs
