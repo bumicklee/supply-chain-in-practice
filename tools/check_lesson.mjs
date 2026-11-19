@@ -27,7 +27,7 @@ if (!/^\d+-\d+$/.test(lesson)) {
   console.error('사용법: make check L=N-M');
   process.exit(2);
 }
-if (!['1-1', '2-1', '2-2', '2-3', '2-4'].includes(lesson)) {
+if (!['1-1', '2-1', '2-2', '2-3', '2-4', '3-1', '3-2'].includes(lesson)) {
   console.error(`✗ ${lesson} 끝 상태 확인은 아직 구현되지 않았습니다.`);
   process.exit(2);
 }
@@ -54,7 +54,7 @@ check(fs.existsSync(path.join(root, 'parts-api', 'node_modules')),
 const pkg = path.join(root, 'parts-api', 'package.json');
 let deps = {};
 try { deps = JSON.parse(fs.readFileSync(pkg, 'utf8')).dependencies || {}; } catch {}
-const name = ['2-2', '2-3', '2-4'].includes(lesson) ? '@parts/price-rules' : 'price-rules';
+const name = ['2-2', '2-3', '2-4', '3-1', '3-2'].includes(lesson) ? '@parts/price-rules' : 'price-rules';
 check(Object.hasOwn(deps, name),
   `${name} 이름으로 설치를 준비함`, `${name} 의존성이 없습니다. 현재 파일은 다른 수업 지점일 수 있습니다.`);
 
@@ -148,6 +148,29 @@ if (lesson === '1-1') {
     const tested = run('npm', ['test'], api);
     check(tested.status === 0 && /pass 5/.test(tested.stdout),
       '예외 패키지 재빌드 뒤 API 시험 5건 통과', 'API 시험이 통과하지 않습니다. @parts/fast-hash만 다시 빌드하세요.');
+  }
+  if (['3-1', '3-2'].includes(lesson)) {
+    const api = path.join(root, 'parts-api');
+    check(Object.hasOwn(deps, '@parts/fast-hash') && fs.existsSync(path.join(api, 'node_modules', '@parts', 'fast-hash', 'build', 'binding.js')),
+      '앞 수업에서 필요한 사내 빌드 결과 유지', '@parts/fast-hash 빌드 파일이 없습니다. npm rebuild @parts/fast-hash --ignore-scripts=false를 실행하세요.');
+    check(npmrc.includes('ignore-scripts=true'),
+      '설치 스크립트 기본 차단 유지', 'parts-api/.npmrc에 ignore-scripts=true가 없습니다.');
+    const folder = path.join(api, 'sbom');
+    let cdx = {}, spdx = {};
+    try { cdx = JSON.parse(fs.readFileSync(path.join(folder, 'parts-api.cdx.json'), 'utf8')); } catch {}
+    try { spdx = JSON.parse(fs.readFileSync(path.join(folder, 'parts-api.spdx.json'), 'utf8')); } catch {}
+    check(cdx.bomFormat === 'CycloneDX' && Array.isArray(cdx.components) && cdx.components.length > 50,
+      'CycloneDX 부품 목록 생성', 'CycloneDX 파일이 없거나 부품이 비었습니다. make sbom을 실행하세요.');
+    check(typeof spdx.spdxVersion === 'string' && spdx.spdxVersion.startsWith('SPDX-') && Array.isArray(spdx.packages) && spdx.packages.length > 50,
+      'SPDX 부품 목록 생성', 'SPDX 파일이 없거나 부품이 비었습니다. make sbom을 실행하세요.');
+    check(Boolean(cdx.metadata?.timestamp) && Boolean(spdx.creationInfo?.created),
+      '두 서식에 생성 시각 기록', 'SBOM의 생성 시각이 비었습니다. make sbom으로 다시 생성하세요.');
+    if (lesson === '3-2') {
+      const report = path.join(root, '.lab', 'lesson-3-2', 'ntia.txt');
+      const output = fs.existsSync(report) ? fs.readFileSync(report, 'utf8') : '';
+      check(output.includes('공급자 이름') && output.includes('의존 관계') && output.includes('결과:'),
+        '최소 요소 일곱 칸 점검 결과 보관', '최소 요소 점검표가 없습니다. make ntia-check SBOM=parts-api/sbom/parts-api.cdx.json을 실행하세요.');
+    }
   }
 }
 
