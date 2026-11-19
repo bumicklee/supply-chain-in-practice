@@ -27,7 +27,7 @@ if (!/^\d+-\d+$/.test(lesson)) {
   console.error('사용법: make check L=N-M');
   process.exit(2);
 }
-if (!['1-1', '2-1', '2-2'].includes(lesson)) {
+if (!['1-1', '2-1', '2-2', '2-3'].includes(lesson)) {
   console.error(`✗ ${lesson} 끝 상태 확인은 아직 구현되지 않았습니다.`);
   process.exit(2);
 }
@@ -54,7 +54,7 @@ check(fs.existsSync(path.join(root, 'parts-api', 'node_modules')),
 const pkg = path.join(root, 'parts-api', 'package.json');
 let deps = {};
 try { deps = JSON.parse(fs.readFileSync(pkg, 'utf8')).dependencies || {}; } catch {}
-const name = lesson === '2-2' ? '@parts/price-rules' : 'price-rules';
+const name = ['2-2', '2-3'].includes(lesson) ? '@parts/price-rules' : 'price-rules';
 check(Object.hasOwn(deps, name),
   `${name} 이름으로 설치를 준비함`, `${name} 의존성이 없습니다. 현재 파일은 다른 수업 지점일 수 있습니다.`);
 
@@ -109,6 +109,23 @@ if (lesson === '1-1') {
   const locked = lock.packages?.['node_modules/@parts/price-rules'];
   check(locked?.version === '1.2.0' && Boolean(locked.resolved) && Boolean(locked.integrity),
     '잠금 파일에 사내 스코프 버전·주소·지문 기록', '잠금 파일에 사내 스코프 1.2.0의 버전·주소·지문이 없습니다.');
+  if (lesson === '2-3') {
+    const evidence = path.join(root, '.lab', 'lesson-2-3');
+    const typo = path.join(evidence, 'typo-installed.txt');
+    check(fs.existsSync(typo) && fs.readFileSync(typo, 'utf8').includes('string-paddr@2.4.0'),
+      '오타 패키지가 실제로 설치됐던 기록', '오타 패키지 설치 기록이 없습니다. 공개 역할 저장소에 올린 뒤 npm install string-paddr를 실행하세요.');
+    check(!Object.hasOwn(deps, 'string-paddr') && !lock.packages?.['node_modules/string-paddr'],
+      '오타 의존성이 소스·잠금 파일에서 제거됨', '오타 의존성이 남아 있습니다. npm uninstall string-paddr 뒤 잠금 파일을 확인하세요.');
+    const ci = path.join(evidence, 'ci-swapped.txt');
+    check(fs.existsSync(ci) && fs.readFileSync(ci, 'utf8').includes('EINTEGRITY'),
+      '바꿔 친 tarball을 새 캐시 npm ci가 거부한 기록', '새 캐시 npm ci의 EINTEGRITY 기록이 없습니다. tarball 바꿔치기 재연을 확인하세요.');
+    const install = path.join(evidence, 'install-swapped.txt');
+    check(fs.existsSync(install) && fs.readFileSync(install, 'utf8').includes('EINTEGRITY'),
+      '새 캐시 npm install도 무결성 오류로 멈춘 기록', '바꿔 친 tarball에서 npm install의 EINTEGRITY 기록이 없습니다.');
+    const restored = run('docker', ['compose', 'exec', '-T', 'verdaccio-internal', 'test', '!', '-f', '/verdaccio/storage/string-padder/string-padder-2.4.0.tgz.original']);
+    check(restored.status === 0,
+      '로컬 tarball 원본 복구됨', '로컬 tarball 백업이 남아 있습니다. make attack-undo A=swap을 실행하세요.');
+  }
 }
 
 console.log(`${passed} passed, ${failed} failed`);

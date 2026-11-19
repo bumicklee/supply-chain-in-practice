@@ -18,8 +18,8 @@ const files = [
   'parts-api/src/app.js',
   'registries/verdaccio-internal/config.yaml',
 ];
-if (!['1-1', '2-1', '2-2'].includes(lesson) || !['start', 'done'].includes(at)) {
-  console.error('사용법: make goto L=1-1|2-1|2-2 [AT=done] [FORCE=1]');
+if (!['1-1', '2-1', '2-2', '2-3'].includes(lesson) || !['start', 'done'].includes(at)) {
+  console.error('사용법: make goto L=1-1|2-1|2-2|2-3 [AT=done] [FORCE=1]');
   console.error('다른 수업의 지점은 아직 구현되지 않았습니다.');
   process.exit(2);
 }
@@ -43,6 +43,14 @@ function labEnv() {
     if (match) env[match[1]] = match[2];
   }
   return env;
+}
+function probeNpm(args, cwd, env, output) {
+  console.log(`$ npm ${args.join(' ')}`);
+  const result = spawnSync('npm', args, { cwd, env, encoding: 'utf8', timeout: 300_000 });
+  if (result.error) throw result.error;
+  fs.mkdirSync(path.dirname(output), { recursive: true });
+  fs.writeFileSync(output, `# 명령: npm ${args.join(' ')}\n# 종료 코드: ${result.status ?? '없음'}\n${result.stdout || ''}${result.stderr || ''}`);
+  return { status: result.status, text: `${result.stdout || ''}${result.stderr || ''}` };
 }
 
 try {
@@ -74,14 +82,15 @@ try {
 
   run('node', ['tools/compose_id.mjs']);
   run('docker', ['compose', 'down', '-v', '--remove-orphans']);
-  for (const rel of ['.lab/seeded', '.lab/seed.npmrc', '.lab/env', '.lab/markers', '.lab/collector.log', '.lab/npm-cache-2-1']) remove(rel);
+  for (const rel of ['.lab/seeded', '.lab/seed.npmrc', '.lab/env', '.lab/markers', '.lab/collector.log', '.lab/npm-cache-2-1', '.lab/lesson-2-3']) remove(rel);
   remove('parts-api/node_modules');
   for (const rel of files) {
     const destination = path.join(root, rel);
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     fs.copyFileSync(path.join(template, rel), destination);
   }
-  if (lesson === '2-2' && at === 'done') {
+  const scopedBase = lesson === '2-3' || lesson === '2-2' && at === 'done';
+  if (scopedBase) {
     for (const rel of files.filter(item => item !== 'parts-api/package-lock.json')) {
       fs.copyFileSync(path.join(root, 'solutions', 'checkpoints', '2-2', rel), path.join(root, rel));
     }
@@ -91,11 +100,37 @@ try {
     run('make', ['up']);
     const env = labEnv();
     const api = path.join(root, 'parts-api');
-    if (lesson === '2-2' && at === 'done') {
+    if (scopedBase) {
       run('make', ['attack', 'A=confusion']);
       run('make', ['attack', 'A=confusion-scoped']);
       remove('parts-api/package-lock.json');
       run('npm', ['install', '--no-audit', '--no-fund', '--cache', path.join(lab, 'npm-cache-2-1')], api, env);
+      if (lesson === '2-3' && at === 'done') {
+        const evidence = path.join(lab, 'lesson-2-3');
+        fs.mkdirSync(evidence, { recursive: true });
+        run('make', ['attack', 'A=typo']);
+        run('npm', ['install', 'string-paddr', '--no-audit', '--no-fund'], api, env);
+        const installed = spawnSync('npm', ['ls', 'string-paddr'], { cwd: api, env, encoding: 'utf8' });
+        fs.writeFileSync(path.join(evidence, 'typo-installed.txt'), installed.stdout || installed.stderr || '');
+        if (installed.status !== 0) throw new Error('오타 패키지 설치 확인 실패');
+        run('npm', ['uninstall', 'string-paddr', '--no-audit', '--no-fund'], api, env);
+        const lock = path.join(api, 'package-lock.json');
+        const originalLock = path.join(evidence, 'lock-before-swap.json');
+        fs.copyFileSync(lock, originalLock);
+        let swapped = false;
+        try {
+          run('make', ['attack', 'A=swap']);
+          swapped = true;
+          const ci = probeNpm(['ci', '--cache', path.join(evidence, 'fresh-ci-cache'), '--no-audit', '--no-fund', '--fetch-retries=0'], api, env, path.join(evidence, 'ci-swapped.txt'));
+          if (ci.status === 0 || !ci.text.includes('EINTEGRITY')) throw new Error('바꿔 친 tarball이 EINTEGRITY로 거부되지 않았습니다.');
+          const install = probeNpm(['install', '--cache', path.join(evidence, 'fresh-install-cache'), '--no-audit', '--no-fund', '--fetch-retries=0'], api, env, path.join(evidence, 'install-swapped.txt'));
+          console.log(`변조 중 npm install 종료 코드: ${install.status}`);
+        } finally {
+          if (swapped) run('make', ['attack-undo', 'A=swap']);
+        }
+        fs.copyFileSync(originalLock, lock);
+        run('npm', ['ci', '--no-audit', '--no-fund'], api, env);
+      }
     } else if (lesson === '2-1' && at === 'done' || lesson === '2-2' && at === 'start') {
       run('make', ['attack', 'A=confusion']);
       remove('parts-api/package-lock.json');
