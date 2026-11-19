@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 지금 구현된 두 수업의 시작/끝 상태를 Git 이력과 무관하게 다시 만든다.
+// 지금 구현된 수업의 시작/끝 상태를 Git 이력과 무관하게 다시 만든다.
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
@@ -18,8 +18,8 @@ const files = [
   'parts-api/src/app.js',
   'registries/verdaccio-internal/config.yaml',
 ];
-if (!['1-1', '2-1'].includes(lesson) || !['start', 'done'].includes(at)) {
-  console.error('사용법: make goto L=1-1|2-1 [AT=done] [FORCE=1]');
+if (!['1-1', '2-1', '2-2'].includes(lesson) || !['start', 'done'].includes(at)) {
+  console.error('사용법: make goto L=1-1|2-1|2-2 [AT=done] [FORCE=1]');
   console.error('다른 수업의 지점은 아직 구현되지 않았습니다.');
   process.exit(2);
 }
@@ -81,12 +81,22 @@ try {
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     fs.copyFileSync(path.join(template, rel), destination);
   }
+  if (lesson === '2-2' && at === 'done') {
+    for (const rel of files.filter(item => item !== 'parts-api/package-lock.json')) {
+      fs.copyFileSync(path.join(root, 'solutions', 'checkpoints', '2-2', rel), path.join(root, rel));
+    }
+  }
 
-  if (at === 'done' || lesson === '2-1') {
+  if (at === 'done' || lesson !== '1-1') {
     run('make', ['up']);
     const env = labEnv();
     const api = path.join(root, 'parts-api');
-    if (lesson === '2-1' && at === 'done') {
+    if (lesson === '2-2' && at === 'done') {
+      run('make', ['attack', 'A=confusion']);
+      run('make', ['attack', 'A=confusion-scoped']);
+      remove('parts-api/package-lock.json');
+      run('npm', ['install', '--no-audit', '--no-fund', '--cache', path.join(lab, 'npm-cache-2-1')], api, env);
+    } else if (lesson === '2-1' && at === 'done' || lesson === '2-2' && at === 'start') {
       run('make', ['attack', 'A=confusion']);
       remove('parts-api/package-lock.json');
       run('npm', ['install', '--no-audit', '--no-fund', '--cache', path.join(lab, 'npm-cache-2-1')], api, env);
