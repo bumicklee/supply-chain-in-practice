@@ -1,4 +1,5 @@
 .lab/
+.env
 release-stage/
 node_modules/
 **/node_modules/

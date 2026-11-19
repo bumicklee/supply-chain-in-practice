@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 DT_WAIT_SECONDS ?= 900
-.PHONY: help doctor up down status where check seed seed-release release-fixtures attack attack-undo scope-cache-clear collector-log collector-clear markers grype-db sbom ntia-check triage-check vex-lint pack-matrix vendor vendor-check release-local release-compare deploy verify-offline dt-up dt-down dt-status dt-key dt-upload dt-report dt-new-vuln pr-gate-local maven-up maven-down
+.PHONY: help doctor compose-id up down status where check seed seed-release release-fixtures attack attack-undo scope-cache-clear collector-log collector-clear markers grype-db sbom ntia-check triage-check vex-lint pack-matrix vendor vendor-check release-local release-compare deploy verify-offline dt-up dt-down dt-status dt-key dt-upload dt-report dt-new-vuln pr-gate-local maven-up maven-down
 
 help:
 	@printf 'make doctor | up | down | status | seed | attack A=<이름> | collector-log | collector-clear | markers\n'
@@ -8,16 +8,19 @@ help:
 doctor:
 	@sh tools/doctor.sh
 
-up:
+compose-id:
+	@node tools/compose_id.mjs
+
+up: compose-id
 	@mkdir -p .lab/markers
 	@docker compose up -d --wait --force-recreate verdaccio-public verdaccio-internal collector
 	@$(MAKE) seed
 	@printf '준비: http://127.0.0.1:4873/ http://127.0.0.1:4874/ http://127.0.0.1:4880/\n'
 
-down:
+down: compose-id
 	@docker compose down
 
-status:
+status: compose-id
 	@docker compose ps
 
 where:
@@ -92,15 +95,15 @@ deploy:
 verify-offline:
 	@sh tools/verify_offline.sh '$(TGZ)' '$(BUNDLE)' '$(ROOT)'
 
-dt-up:
+dt-up: compose-id
 	@docker compose --profile dt up -d dt-apiserver dt-frontend collector
 	@node tools/wait_http.mjs http://127.0.0.1:8181/api/version '$(DT_WAIT_SECONDS)'
 	@printf 'Dependency-Track: http://127.0.0.1:8180/\n'
 
-dt-down:
+dt-down: compose-id
 	@docker compose --profile dt stop dt-frontend dt-apiserver
 
-dt-status:
+dt-status: compose-id
 	@docker compose --profile dt ps dt-apiserver dt-frontend collector
 
 dt-key:
@@ -118,11 +121,11 @@ dt-new-vuln:
 pr-gate-local:
 	@node tools/pr_gate_local.mjs '$(BASE)' '$(HEAD)'
 
-maven-up:
+maven-up: compose-id
 	@node tools/maven_fixture.mjs seed
 	@docker compose --profile maven up -d --wait maven-public maven-internal
 	@printf 'Maven 역할 저장소: http://127.0.0.1:8082/ · http://127.0.0.1:8081/\n'
 
-maven-down:
+maven-down: compose-id
 	@docker compose --profile maven stop maven-public maven-internal
 

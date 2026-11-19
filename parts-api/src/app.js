@@ -1,9 +1,7 @@
 const express = require('express');
-const priceRules = require('@parts/price-rules');
+const priceRules = require('price-rules');
 const stringPadder = require('string-padder');
 const lodash = require('lodash');
-const fastHash = require('@parts/fast-hash');
-fastHash.hash('startup');
 
 const app = express();
 app.use(express.json({ limit: '16kb' }));

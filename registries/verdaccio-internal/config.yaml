@@ -24,6 +24,7 @@ packages:
   '@parts/*':
     access: $authenticated
     publish: $all
+    proxy: public
   '**':
     access: $all
     publish: $authenticated

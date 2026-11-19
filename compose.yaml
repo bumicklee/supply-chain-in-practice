@@ -1,8 +1,7 @@
-name: scl
 services:
   verdaccio-public:
     image: verdaccio/verdaccio:6@sha256:9ba07c347022a7fb4bc34ffbf12d86c9670dcfa28ac424a79bec20d61e688a98
-    container_name: scl-verdaccio-public
+    container_name: ${LAB_COMPOSE_PREFIX:-scl}-verdaccio-public
     ports:
       - 127.0.0.1:4874:4873
     volumes:
@@ -15,7 +14,7 @@ services:
       retries: 20
   verdaccio-internal:
     image: verdaccio/verdaccio:6@sha256:9ba07c347022a7fb4bc34ffbf12d86c9670dcfa28ac424a79bec20d61e688a98
-    container_name: scl-verdaccio-internal
+    container_name: ${LAB_COMPOSE_PREFIX:-scl}-verdaccio-internal
     depends_on:
       verdaccio-public:
         condition: service_healthy
@@ -33,7 +32,7 @@ services:
       retries: 20
   collector:
     image: node:22.21.1-alpine@sha256:0340fa682d72068edf603c305bfbc10e23219fb0e40df58d9ea4d6f33a9798bf
-    container_name: scl-collector
+    container_name: ${LAB_COMPOSE_PREFIX:-scl}-collector
     command: [node, /work/tools/collector.mjs]
     ports:
       - 127.0.0.1:4880:4880
@@ -49,7 +48,7 @@ services:
   dt-apiserver:
     profiles: [dt]
     image: dependencytrack/apiserver:4.14.5@sha256:4d41f29ce886a7fcb94a424b3eb2bfd17497ba92d48d43896c48e87a69bcf335
-    container_name: scl-dt-apiserver
+    container_name: ${LAB_COMPOSE_PREFIX:-scl}-dt-apiserver
     ports:
       - 127.0.0.1:8181:8080
     environment:
@@ -66,7 +65,7 @@ services:
   dt-frontend:
     profiles: [dt]
     image: dependencytrack/frontend:4.14.5@sha256:d675efbd80facddb696c21c82e1973d0dc83ae38b3c896d1c87bf78a26a6c9eb
-    container_name: scl-dt-frontend
+    container_name: ${LAB_COMPOSE_PREFIX:-scl}-dt-frontend
     depends_on:
       - dt-apiserver
     ports:
@@ -76,7 +75,7 @@ services:
   maven-internal:
     profiles: [maven]
     image: node:22.21.1-alpine@sha256:0340fa682d72068edf603c305bfbc10e23219fb0e40df58d9ea4d6f33a9798bf
-    container_name: scl-maven-internal
+    container_name: ${LAB_COMPOSE_PREFIX:-scl}-maven-internal
     command: [node, /work/tools/maven_server.mjs, /work/.lab/maven-internal, '8081']
     ports:
       - 127.0.0.1:8081:8081
@@ -91,7 +90,7 @@ services:
   maven-public:
     profiles: [maven]
     image: node:22.21.1-alpine@sha256:0340fa682d72068edf603c305bfbc10e23219fb0e40df58d9ea4d6f33a9798bf
-    container_name: scl-maven-public
+    container_name: ${LAB_COMPOSE_PREFIX:-scl}-maven-public
     command: [node, /work/tools/maven_server.mjs, /work/.lab/maven-public, '8082']
     ports:
       - 127.0.0.1:8082:8082

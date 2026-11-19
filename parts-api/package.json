@@ -1,6 +1,6 @@
 {
   "name": "parts-api",
-  "version": "1.2.0",
+  "version": "1.0.0",
   "private": false,
   "description": "Supply chain security course lab API",
   "main": "src/app.js",
@@ -14,11 +14,10 @@
     "start": "node src/server.js"
   },
   "dependencies": {
-    "@parts/fast-hash": "^1.0.0",
-    "@parts/price-rules": "^1.2.0",
     "express": "4.21.2",
     "lodash": "4.17.20",
-    "minimist": "^1.2.8",
+    "minimist": "0.0.8",
+    "price-rules": "^1.2.0",
     "string-padder": "^2.4.0"
   }
 }
