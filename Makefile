@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 DT_WAIT_SECONDS ?= 900
-.PHONY: help doctor up down status seed seed-release release-fixtures attack attack-undo scope-cache-clear collector-log collector-clear markers grype-db sbom ntia-check triage-check vex-lint pack-matrix vendor vendor-check release-local release-compare deploy verify-offline dt-up dt-down dt-status dt-key dt-upload dt-report dt-new-vuln pr-gate-local maven-up maven-down
+.PHONY: help doctor up down status where check seed seed-release release-fixtures attack attack-undo scope-cache-clear collector-log collector-clear markers grype-db sbom ntia-check triage-check vex-lint pack-matrix vendor vendor-check release-local release-compare deploy verify-offline dt-up dt-down dt-status dt-key dt-upload dt-report dt-new-vuln pr-gate-local maven-up maven-down
 
 help:
 	@printf 'make doctor | up | down | status | seed | attack A=<이름> | collector-log | collector-clear | markers\n'
@@ -19,6 +19,12 @@ down:
 
 status:
 	@docker compose ps
+
+where:
+	@node tools/check_lesson.mjs --where
+
+check:
+	@node tools/check_lesson.mjs '$(L)'
 
 seed:
 	@node tools/seed.mjs
