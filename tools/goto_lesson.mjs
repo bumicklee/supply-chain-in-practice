@@ -18,8 +18,8 @@ const files = [
   'parts-api/src/app.js',
   'registries/verdaccio-internal/config.yaml',
 ];
-if (!['1-1', '2-1', '2-2', '2-3'].includes(lesson) || !['start', 'done'].includes(at)) {
-  console.error('사용법: make goto L=1-1|2-1|2-2|2-3 [AT=done] [FORCE=1]');
+if (!['1-1', '2-1', '2-2', '2-3', '2-4'].includes(lesson) || !['start', 'done'].includes(at)) {
+  console.error('사용법: make goto L=1-1|2-1|2-2|2-3|2-4 [AT=done] [FORCE=1]');
   console.error('다른 수업의 지점은 아직 구현되지 않았습니다.');
   process.exit(2);
 }
@@ -82,17 +82,22 @@ try {
 
   run('node', ['tools/compose_id.mjs']);
   run('docker', ['compose', 'down', '-v', '--remove-orphans']);
-  for (const rel of ['.lab/seeded', '.lab/seed.npmrc', '.lab/env', '.lab/markers', '.lab/collector.log', '.lab/npm-cache-2-1', '.lab/lesson-2-3']) remove(rel);
+  for (const rel of ['.lab/seeded', '.lab/seed.npmrc', '.lab/env', '.lab/markers', '.lab/collector.log', '.lab/npm-cache-2-1', '.lab/lesson-2-3', '.lab/lesson-2-4']) remove(rel);
   remove('parts-api/node_modules');
   for (const rel of files) {
     const destination = path.join(root, rel);
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     fs.copyFileSync(path.join(template, rel), destination);
   }
-  const scopedBase = lesson === '2-3' || lesson === '2-2' && at === 'done';
+  const scopedBase = ['2-3', '2-4'].includes(lesson) || lesson === '2-2' && at === 'done';
   if (scopedBase) {
     for (const rel of files.filter(item => item !== 'parts-api/package-lock.json')) {
       fs.copyFileSync(path.join(root, 'solutions', 'checkpoints', '2-2', rel), path.join(root, rel));
+    }
+  }
+  if (lesson === '2-4') {
+    for (const rel of ['parts-api/package.json', 'parts-api/src/app.js']) {
+      fs.copyFileSync(path.join(root, 'solutions', 'checkpoints', '2-4', 'start', rel), path.join(root, rel));
     }
   }
 
@@ -130,6 +135,33 @@ try {
         }
         fs.copyFileSync(originalLock, lock);
         run('npm', ['ci', '--no-audit', '--no-fund'], api, env);
+      }
+      if (lesson === '2-4' && at === 'done') {
+        const evidence = path.join(lab, 'lesson-2-4');
+        fs.mkdirSync(evidence, { recursive: true });
+        run('make', ['collector-clear']);
+        run('make', ['attack', 'A=hijack']);
+        run('make', ['padder-cache-refresh']);
+        run('npm', ['install', 'string-padder@2.4.1', '--no-audit', '--no-fund'], api, env);
+        const collector = path.join(lab, 'collector.log');
+        for (let n = 0; n < 30 && (!fs.existsSync(collector) || fs.statSync(collector).size === 0); n++) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        if (!fs.existsSync(collector) || !fs.readFileSync(collector, 'utf8').includes('LAB_FAKE_TOKEN_DO_NOT_USE')) {
+          throw new Error('스크립트가 켜진 설치에서 가짜 토큰이 수집기에 도착하지 않았습니다.');
+        }
+        fs.copyFileSync(collector, path.join(evidence, 'collector-leak.jsonl'));
+        fs.copyFileSync(path.join(root, 'solutions', 'checkpoints', '2-4', 'done', 'parts-api', '.npmrc'), path.join(api, '.npmrc'));
+        run('make', ['collector-clear']);
+        run('npm', ['ci', '--no-audit', '--no-fund'], api, env);
+        const broken = probeNpm(['test'], api, env, path.join(evidence, 'missing-build.txt'));
+        if (broken.status === 0 || !broken.text.includes('Cannot find module')) throw new Error('스크립트 차단 뒤 빠진 빌드 파일을 재현하지 못했습니다.');
+        run('npm', ['rebuild', '@parts/fast-hash', '--ignore-scripts=false'], api, env);
+        run('npm', ['test'], api, env);
+        run('npm', ['install', 'string-padder@2.4.0', '--no-audit', '--no-fund'], api, env);
+        run('npm', ['test'], api, env);
+        if (fs.existsSync(collector) && fs.statSync(collector).size !== 0) throw new Error('스크립트 차단 후 수집기 기록이 새로 생겼습니다.');
+        fs.writeFileSync(path.join(evidence, 'collector-after.txt'), '# ignore-scripts=true 뒤 수집기 기록 0바이트\n');
       }
     } else if (lesson === '2-1' && at === 'done' || lesson === '2-2' && at === 'start') {
       run('make', ['attack', 'A=confusion']);

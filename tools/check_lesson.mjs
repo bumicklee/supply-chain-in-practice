@@ -27,7 +27,7 @@ if (!/^\d+-\d+$/.test(lesson)) {
   console.error('사용법: make check L=N-M');
   process.exit(2);
 }
-if (!['1-1', '2-1', '2-2', '2-3'].includes(lesson)) {
+if (!['1-1', '2-1', '2-2', '2-3', '2-4'].includes(lesson)) {
   console.error(`✗ ${lesson} 끝 상태 확인은 아직 구현되지 않았습니다.`);
   process.exit(2);
 }
@@ -54,7 +54,7 @@ check(fs.existsSync(path.join(root, 'parts-api', 'node_modules')),
 const pkg = path.join(root, 'parts-api', 'package.json');
 let deps = {};
 try { deps = JSON.parse(fs.readFileSync(pkg, 'utf8')).dependencies || {}; } catch {}
-const name = ['2-2', '2-3'].includes(lesson) ? '@parts/price-rules' : 'price-rules';
+const name = ['2-2', '2-3', '2-4'].includes(lesson) ? '@parts/price-rules' : 'price-rules';
 check(Object.hasOwn(deps, name),
   `${name} 이름으로 설치를 준비함`, `${name} 의존성이 없습니다. 현재 파일은 다른 수업 지점일 수 있습니다.`);
 
@@ -125,6 +125,29 @@ if (lesson === '1-1') {
     const restored = run('docker', ['compose', 'exec', '-T', 'verdaccio-internal', 'test', '!', '-f', '/verdaccio/storage/string-padder/string-padder-2.4.0.tgz.original']);
     check(restored.status === 0,
       '로컬 tarball 원본 복구됨', '로컬 tarball 백업이 남아 있습니다. make attack-undo A=swap을 실행하세요.');
+  }
+  if (lesson === '2-4') {
+    const api = path.join(root, 'parts-api');
+    const evidence = path.join(root, '.lab', 'lesson-2-4');
+    check(Object.hasOwn(deps, '@parts/fast-hash') && fs.existsSync(path.join(api, 'node_modules', '@parts', 'fast-hash', 'build', 'binding.js')),
+      '필요한 사내 패키지의 빌드 결과가 있음', '@parts/fast-hash 빌드 파일이 없습니다. 해당 패키지만 npm rebuild 하세요.');
+    check(npmrc.includes('ignore-scripts=true'),
+      '프로젝트 설치 스크립트가 기본 차단됨', 'parts-api/.npmrc에 ignore-scripts=true를 추가하세요.');
+    const leak = path.join(evidence, 'collector-leak.jsonl');
+    check(fs.existsSync(leak) && fs.readFileSync(leak, 'utf8').includes('LAB_FAKE_TOKEN_DO_NOT_USE'),
+      '차단 전 가짜 토큰 수집 기록 보관', '스크립트가 켜진 설치에서 가짜 토큰이 수집기에 온 기록이 없습니다.');
+    const collector = path.join(root, '.lab', 'collector.log');
+    check(!fs.existsSync(collector) || fs.statSync(collector).size === 0,
+      '차단 뒤 로컬 수집기에 새 기록 없음', '수집기 기록이 남아 있습니다. make collector-clear 뒤 차단된 설치를 다시 확인하세요.');
+    const broken = path.join(evidence, 'missing-build.txt');
+    check(fs.existsSync(broken) && fs.readFileSync(broken, 'utf8').includes('Cannot find module'),
+      '스크립트 차단으로 필요한 빌드가 빠진 실패 기록', '스크립트 차단 뒤 필요한 빌드가 빠진 시험 결과가 없습니다.');
+    const padder = lock.packages?.['node_modules/string-padder'];
+    check(padder?.version === '2.4.0',
+      '정상 string-padder 2.4.0으로 복귀', '잠금 파일에 정상 string-padder 2.4.0이 없습니다.');
+    const tested = run('npm', ['test'], api);
+    check(tested.status === 0 && /pass 5/.test(tested.stdout),
+      '예외 패키지 재빌드 뒤 API 시험 5건 통과', 'API 시험이 통과하지 않습니다. @parts/fast-hash만 다시 빌드하세요.');
   }
 }
 

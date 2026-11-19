@@ -23,6 +23,7 @@ services:
     volumes:
       - ./registries/verdaccio-internal/config.yaml:/verdaccio/conf/config.yaml:ro
       - ./tools/scope_cache_clear.mjs:/work/tools/scope_cache_clear.mjs:ro
+      - ./tools/padder_cache_refresh.mjs:/work/tools/padder_cache_refresh.mjs:ro
       - ./tools/swap_tarball.mjs:/work/tools/swap_tarball.mjs:ro
       - internal-data:/verdaccio/storage
     healthcheck:

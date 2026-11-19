@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 DT_WAIT_SECONDS ?= 900
-.PHONY: help doctor compose-id up down status where goto check seed seed-release release-fixtures attack attack-undo scope-cache-clear collector-log collector-clear markers grype-db sbom ntia-check triage-check vex-lint pack-matrix vendor vendor-check release-local release-compare deploy verify-offline dt-up dt-down dt-status dt-key dt-upload dt-report dt-new-vuln pr-gate-local maven-up maven-down
+.PHONY: help doctor compose-id up down status where goto check seed seed-release release-fixtures attack attack-undo scope-cache-clear padder-cache-refresh collector-log collector-clear markers grype-db sbom ntia-check triage-check vex-lint pack-matrix vendor vendor-check release-local release-compare deploy verify-offline dt-up dt-down dt-status dt-key dt-upload dt-report dt-new-vuln pr-gate-local maven-up maven-down
 
 help:
 	@printf 'make doctor | up | down | status | seed | attack A=<이름> | collector-log | collector-clear | markers\n'
@@ -49,6 +49,10 @@ attack-undo:
 
 scope-cache-clear:
 	@docker compose exec -T verdaccio-internal node /work/tools/scope_cache_clear.mjs
+	@docker compose restart verdaccio-internal
+
+padder-cache-refresh:
+	@docker compose exec -T verdaccio-internal node /work/tools/padder_cache_refresh.mjs
 	@docker compose restart verdaccio-internal
 
 collector-log:
