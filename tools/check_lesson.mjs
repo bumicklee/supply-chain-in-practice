@@ -27,7 +27,7 @@ if (!/^\d+-\d+$/.test(lesson)) {
   console.error('사용법: make check L=N-M');
   process.exit(2);
 }
-if (lesson !== '1-1') {
+if (!['1-1', '2-1'].includes(lesson)) {
   console.error(`✗ ${lesson} 끝 상태 확인은 아직 구현되지 않았습니다.`);
   process.exit(2);
 }
@@ -55,13 +55,31 @@ const pkg = path.join(root, 'parts-api', 'package.json');
 let deps = {};
 try { deps = JSON.parse(fs.readFileSync(pkg, 'utf8')).dependencies || {}; } catch {}
 check(Object.hasOwn(deps, 'price-rules'),
-  'price-rules 이름으로 첫 설치를 준비함', '첫 수업의 price-rules 의존성이 없습니다. 현재 파일은 뒤 수업 지점일 수 있습니다.');
+  'price-rules 이름으로 설치를 준비함', 'price-rules 의존성이 없습니다. 현재 파일은 다른 수업 지점일 수 있습니다.');
 
 const npm = run('npm', ['ls', 'price-rules', '--json', '--all'], path.join(root, 'parts-api'));
 let version = '';
 try { version = JSON.parse(npm.stdout).dependencies?.['price-rules']?.version || ''; } catch {}
-check(npm.status === 0 && version === '1.2.0',
-  'price-rules 1.2.0 설치 확인', 'price-rules 1.2.0이 설치되지 않았습니다. parts-api에서 npm ci를 다시 실행하세요.');
+if (lesson === '1-1') {
+  check(npm.status === 0 && version === '1.2.0',
+    'price-rules 1.2.0 설치 확인', 'price-rules 1.2.0이 설치되지 않았습니다. parts-api에서 npm ci를 다시 실행하세요.');
+} else {
+  const view = run('npm', ['view', 'price-rules', 'versions', '--json', '--registry', 'http://127.0.0.1:4873/', '--prefer-online', '--fetch-retries=0']);
+  let versions = [];
+  try { versions = JSON.parse(view.stdout); } catch {}
+  check(view.status === 0 && ['1.2.0', '1.99.0', '99.0.0'].every(v => versions.includes(v)),
+    '사내 주소에서 내부·공개 역할 버전 세 개가 함께 보임', '사내 주소에 공개 역할 버전이 함께 보이지 않습니다. make attack A=confusion 결과와 프록시 설정을 확인하세요.');
+  check(npm.status === 0 && version === '1.99.0',
+    '범위 안의 공개 역할 버전 1.99.0 설치 확인', 'price-rules 1.99.0이 설치되지 않았습니다. 잠금 파일을 새로 만든 설치 결과를 확인하세요.');
+  const marker = path.join(root, '.lab', 'markers', 'price-rules-1.99.0.txt');
+  check(fs.existsSync(marker),
+    '설치 스크립트 표식 확인', '설치 스크립트 표식이 없습니다. source .lab/env 뒤 다시 설치하세요.');
+  let lock = {};
+  try { lock = JSON.parse(fs.readFileSync(path.join(root, 'parts-api', 'package-lock.json'), 'utf8')); } catch {}
+  const locked = lock.packages?.['node_modules/price-rules'];
+  check(locked?.version === '1.99.0' && Boolean(locked.resolved) && Boolean(locked.integrity),
+    '잠금 파일에 버전·받은 주소·지문 기록', '잠금 파일에 1.99.0의 버전·받은 주소·지문이 없습니다.');
+}
 
 console.log(`${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);

@@ -28,4 +28,3 @@ app.post('/quote', (request, response) => {
 });
 
 module.exports = app;
-

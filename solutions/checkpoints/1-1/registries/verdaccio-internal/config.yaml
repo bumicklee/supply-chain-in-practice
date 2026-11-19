@@ -1,0 +1,35 @@
+storage: /verdaccio/storage
+web:
+  enable: false
+auth:
+  htpasswd:
+    file: /verdaccio/storage/htpasswd
+uplinks:
+  public:
+    url: http://verdaccio-public:4873/
+    cache: true
+packages:
+  'price-rules':
+    access: $all
+    publish: $all
+    proxy: public
+  'string-padder':
+    access: $all
+    publish: $all
+    proxy: public
+  'string-paddr':
+    access: $all
+    publish: $all
+    proxy: public
+  '@parts/*':
+    access: $authenticated
+    publish: $all
+    proxy: public
+  '**':
+    access: $all
+    publish: $authenticated
+    proxy: public
+log:
+  type: stdout
+  format: pretty
+  level: warn
