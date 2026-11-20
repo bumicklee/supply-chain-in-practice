@@ -25,8 +25,8 @@ const generated = [
 ];
 const policy = 'policy/triage.yaml';
 const vex = 'vex/parts-api.openvex.json';
-if (!['1-1', '2-1', '2-2', '2-3', '2-4', '3-1', '3-2', '4-1', '4-2', '5-1', '5-2', '6-1', '6-2', '7-1', '7-2'].includes(lesson) || !['start', 'done'].includes(at)) {
-  console.error('사용법: make goto L=1-1|2-1|2-2|2-3|2-4|3-1|3-2|4-1|4-2|5-1|5-2|6-1|6-2|7-1|7-2 [AT=done] [FORCE=1]');
+if (!['1-1', '2-1', '2-2', '2-3', '2-4', '3-1', '3-2', '4-1', '4-2', '5-1', '5-2', '6-1', '6-2', '7-1', '7-2', '8-1'].includes(lesson) || !['start', 'done'].includes(at)) {
+  console.error('사용법: make goto L=1-1|2-1|2-2|2-3|2-4|3-1|3-2|4-1|4-2|5-1|5-2|6-1|6-2|7-1|7-2|8-1 [AT=done] [FORCE=1]');
   console.error('다른 수업의 지점은 아직 구현되지 않았습니다.');
   process.exit(2);
 }
@@ -47,6 +47,11 @@ if (lesson === '7-1') {
 }
 if (lesson === '7-2') {
   const result = spawnSync('node', ['tools/goto_verify_7_2.mjs', at, force ? '1' : ''], { cwd: root, stdio: 'inherit', timeout: 900_000 });
+  if (result.error) console.error(result.error.message);
+  process.exit(result.status ?? 1);
+}
+if (lesson === '8-1') {
+  const result = spawnSync('node', ['tools/goto_integrated_8_1.mjs', at, force ? '1' : ''], { cwd: root, stdio: 'inherit', timeout: 1_800_000 });
   if (result.error) console.error(result.error.message);
   process.exit(result.status ?? 1);
 }
