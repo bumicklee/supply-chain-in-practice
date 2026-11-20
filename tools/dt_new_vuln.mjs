@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 const key = readFileSync('.lab/dt-api-key', 'utf8').trim();
 const base = 'http://127.0.0.1:8181/api/v1';
 const vulnId = 'INT-LAB-0001';
+const replay = process.argv.includes('--replay');
 const headers = { 'Content-Type': 'application/json', 'X-Api-Key': key };
 const request = (path, options = {}) => fetch(`${base}${path}`, {
   headers,
@@ -10,7 +11,35 @@ const request = (path, options = {}) => fetch(`${base}${path}`, {
   ...options,
 });
 
-const existing = await request(`/vulnerability/source/INTERNAL/vuln/${vulnId}`);
+let existing = await request(`/vulnerability/source/INTERNAL/vuln/${vulnId}`);
+if (replay && existing.ok) {
+  const data = await existing.json();
+  if (!data.description?.startsWith('실습용 내부 취약점.') ||
+      !data.affectedComponents?.some(component => component.identity === 'pkg:npm/%40parts/price-rules@1.2.0')) {
+    throw new Error(`${vulnId}이 실습용 취약점과 달라 재연을 중지합니다.`);
+  }
+  // DT refuses to delete a vulnerability while a portfolio component uses it.
+  // The 1.0.0 project is this lesson's disposable example; remove only that
+  // exact project before recreating the event. The 1.1.0 comparison remains.
+  const projectResponse = await request('/project/lookup?name=parts-api&version=1.0.0');
+  if (projectResponse.ok) {
+    const project = await projectResponse.json();
+    if (project.name !== 'parts-api' || project.version !== '1.0.0') {
+      throw new Error('재연 대상 프로젝트의 이름과 버전이 예상과 달라 중지합니다.');
+    }
+    const deletedProject = await request(`/project/${project.uuid}`, { method: 'DELETE' });
+    if (deletedProject.status !== 204) {
+      throw new Error(`기존 1.0.0 실습 프로젝트 삭제 실패: HTTP ${deletedProject.status}`);
+    }
+    console.log('✓ 기존 1.0.0 실습 프로젝트를 재연용으로 정리');
+  } else if (projectResponse.status !== 404) {
+    throw new Error(`기존 1.0.0 실습 프로젝트 조회 실패: HTTP ${projectResponse.status}`);
+  }
+  const removed = await request(`/vulnerability/${data.uuid}`, { method: 'DELETE' });
+  if (!removed.ok) throw new Error(`기존 실습용 취약점 삭제 실패: HTTP ${removed.status}`);
+  console.log(`✓ 기존 실습용 취약점 ${vulnId}을 재연용으로 정리`);
+  existing = await request(`/vulnerability/source/INTERNAL/vuln/${vulnId}`);
+}
 if (existing.status === 404) {
   const payload = {
     source: 'INTERNAL',

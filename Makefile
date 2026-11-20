@@ -1,6 +1,7 @@
 .DEFAULT_GOAL := help
 DT_WAIT_SECONDS ?= 900
-.PHONY: help doctor compose-id up down status where goto check seed seed-release release-fixtures attack attack-undo scope-cache-clear padder-cache-refresh collector-log collector-clear markers grype-db sbom ntia-check kev-check triage-check vex-lint pack-matrix vendor vendor-check release-local release-compare deploy verify-offline dt-up dt-down dt-status dt-key dt-upload dt-report dt-new-vuln pr-gate-local maven-up maven-down
+DT_FAST ?= 1
+.PHONY: help doctor compose-id up down status where goto check seed seed-release release-fixtures attack attack-undo scope-cache-clear padder-cache-refresh collector-log collector-clear markers grype-db sbom ntia-check kev-check triage-check vex-lint pack-matrix vendor vendor-check release-local release-compare deploy verify-offline dt-prepare-fast dt-up dt-down dt-status dt-bootstrap dt-key dt-upload dt-report dt-setup-5-1 dt-new-vuln pr-gate-local maven-up maven-down
 
 help:
 	@printf 'make doctor | up | down | status | seed | attack A=<이름> | collector-log | collector-clear | markers\n'
@@ -18,7 +19,7 @@ up: compose-id
 	@printf '준비: http://127.0.0.1:4873/ http://127.0.0.1:4874/ http://127.0.0.1:4880/\n'
 
 down: compose-id
-	@docker compose down
+	@docker compose --profile dt --profile maven down
 
 status: compose-id
 	@docker compose ps
@@ -104,7 +105,11 @@ deploy:
 verify-offline:
 	@sh tools/verify_offline.sh '$(TGZ)' '$(BUNDLE)' '$(ROOT)'
 
+dt-prepare-fast: compose-id
+	@node tools/dt_prepare_fast.mjs
+
 dt-up: compose-id
+	@if [ '$(DT_FAST)' != 0 ]; then $(MAKE) dt-prepare-fast; fi
 	@docker compose --profile dt up -d dt-apiserver dt-frontend collector
 	@node tools/wait_http.mjs http://127.0.0.1:8181/api/version '$(DT_WAIT_SECONDS)'
 	@printf 'Dependency-Track: http://127.0.0.1:8180/\n'
@@ -115,6 +120,9 @@ dt-down: compose-id
 dt-status: compose-id
 	@docker compose --profile dt ps dt-apiserver dt-frontend collector
 
+dt-bootstrap:
+	@node tools/dt_bootstrap.mjs
+
 dt-key:
 	@if [ -s .lab/dt-api-key ]; then printf '✓ Dependency-Track API 키 준비\n'; else printf '✗ 관리 화면에서 팀 API 키를 만들어 .lab/dt-api-key에 저장하세요.\n'; exit 1; fi
 
@@ -124,8 +132,11 @@ dt-upload:
 dt-report:
 	@node tools/dt_report.mjs
 
+dt-setup-5-1: dt-key
+	@node tools/dt_setup_5_1.mjs
+
 dt-new-vuln:
-	@node tools/dt_new_vuln.mjs
+	@node tools/dt_new_vuln.mjs $(if $(REPLAY),--replay,)
 
 pr-gate-local:
 	@node tools/pr_gate_local.mjs '$(BASE)' '$(HEAD)'

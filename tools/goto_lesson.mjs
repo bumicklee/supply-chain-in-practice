@@ -25,8 +25,8 @@ const generated = [
 ];
 const policy = 'policy/triage.yaml';
 const vex = 'vex/parts-api.openvex.json';
-if (!['1-1', '2-1', '2-2', '2-3', '2-4', '3-1', '3-2', '4-1', '4-2'].includes(lesson) || !['start', 'done'].includes(at)) {
-  console.error('사용법: make goto L=1-1|2-1|2-2|2-3|2-4|3-1|3-2|4-1|4-2 [AT=done] [FORCE=1]');
+if (!['1-1', '2-1', '2-2', '2-3', '2-4', '3-1', '3-2', '4-1', '4-2', '5-1'].includes(lesson) || !['start', 'done'].includes(at)) {
+  console.error('사용법: make goto L=1-1|2-1|2-2|2-3|2-4|3-1|3-2|4-1|4-2|5-1 [AT=done] [FORCE=1]');
   console.error('다른 수업의 지점은 아직 구현되지 않았습니다.');
   process.exit(2);
 }
@@ -88,6 +88,9 @@ function recordJson(command, args, output) {
 }
 
 try {
+  if (lesson === '5-1' && at === 'done' && !fs.existsSync(path.join(lab, 'dt-api-key'))) {
+    throw new Error('먼저 make goto L=5-1, make down, make dt-up, make dt-bootstrap을 실행하세요.');
+  }
   const template = path.join(root, 'solutions', 'checkpoints', '1-1');
   const previous = fs.existsSync(stateFile) ? JSON.parse(fs.readFileSync(stateFile, 'utf8')) : null;
   const changed = [...files, ...generated, policy, vex].filter(rel => {
@@ -115,8 +118,16 @@ try {
   }
 
   run('node', ['tools/compose_id.mjs']);
-  run('docker', ['compose', 'down', '-v', '--remove-orphans']);
-  for (const rel of ['.lab/seeded', '.lab/seed.npmrc', '.lab/env', '.lab/markers', '.lab/collector.log', '.lab/npm-cache-2-1', '.lab/lesson-2-3', '.lab/lesson-2-4', '.lab/lesson-3-2', '.lab/lesson-4-1', '.lab/lesson-4-2']) remove(rel);
+  // Keep the Dependency-Track volume across lessons. Only the two registry
+  // volumes represent disposable attack state.
+  run('docker', ['compose', '--profile', 'dt', '--profile', 'maven', 'down', '--remove-orphans']);
+  const composeName = /^COMPOSE_PROJECT_NAME=(.+)$/m.exec(fs.readFileSync(path.join(root, '.env'), 'utf8'))?.[1];
+  if (!composeName) throw new Error('.env에 COMPOSE_PROJECT_NAME이 없습니다.');
+  for (const name of [`${composeName}_public-data`, `${composeName}_internal-data`]) {
+    const found = spawnSync('docker', ['volume', 'inspect', name], { cwd: root, stdio: 'ignore' });
+    if (found.status === 0) run('docker', ['volume', 'rm', name]);
+  }
+  for (const rel of ['.lab/seeded', '.lab/seed.npmrc', '.lab/env', '.lab/markers', '.lab/collector.log', '.lab/npm-cache-2-1', '.lab/lesson-2-3', '.lab/lesson-2-4', '.lab/lesson-3-2', '.lab/lesson-4-1', '.lab/lesson-4-2', '.lab/lesson-5-1', '.lab/sbom-1.0.0.cdx.json', '.lab/sbom-1.1.0.cdx.json']) remove(rel);
   remove('parts-api/node_modules');
   for (const rel of generated) remove(rel);
   remove(policy);
@@ -126,18 +137,18 @@ try {
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     fs.copyFileSync(path.join(template, rel), destination);
   }
-  const scopedBase = ['2-3', '2-4', '3-1', '3-2', '4-1', '4-2'].includes(lesson) || lesson === '2-2' && at === 'done';
+  const scopedBase = ['2-3', '2-4', '3-1', '3-2', '4-1', '4-2', '5-1'].includes(lesson) || lesson === '2-2' && at === 'done';
   if (scopedBase) {
     for (const rel of files.filter(item => item !== 'parts-api/package-lock.json')) {
       fs.copyFileSync(path.join(root, 'solutions', 'checkpoints', '2-2', rel), path.join(root, rel));
     }
   }
-  if (['2-4', '3-1', '3-2', '4-1', '4-2'].includes(lesson)) {
+  if (['2-4', '3-1', '3-2', '4-1', '4-2', '5-1'].includes(lesson)) {
     for (const rel of ['parts-api/package.json', 'parts-api/src/app.js']) {
       fs.copyFileSync(path.join(root, 'solutions', 'checkpoints', '2-4', 'start', rel), path.join(root, rel));
     }
   }
-  if (['3-1', '3-2', '4-1', '4-2'].includes(lesson)) {
+  if (['3-1', '3-2', '4-1', '4-2', '5-1'].includes(lesson)) {
     fs.copyFileSync(path.join(root, 'solutions', 'checkpoints', '2-4', 'done', 'parts-api', '.npmrc'), path.join(root, 'parts-api', '.npmrc'));
   }
   if (lesson === '4-1') {
@@ -150,6 +161,16 @@ try {
     for (const [rel, source] of [
       [policy, path.join(root, 'solutions', 'checkpoints', '4-1', 'done', policy)],
       [vex, path.join(root, 'solutions', 'checkpoints', '4-2', 'start', vex)],
+    ]) {
+      const destination = path.join(root, rel);
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      fs.copyFileSync(source, destination);
+    }
+  }
+  if (lesson === '5-1') {
+    for (const [rel, source] of [
+      [policy, path.join(root, 'solutions', 'checkpoints', '4-1', 'done', policy)],
+      [vex, path.join(root, 'solutions', 'checkpoints', '4-2', 'done', vex)],
     ]) {
       const destination = path.join(root, rel);
       fs.mkdirSync(path.dirname(destination), { recursive: true });
@@ -219,10 +240,10 @@ try {
         if (fs.existsSync(collector) && fs.statSync(collector).size !== 0) throw new Error('스크립트 차단 후 수집기 기록이 새로 생겼습니다.');
         fs.writeFileSync(path.join(evidence, 'collector-after.txt'), '# ignore-scripts=true 뒤 수집기 기록 0바이트\n');
       }
-      if (['3-1', '3-2', '4-1', '4-2'].includes(lesson)) {
+      if (['3-1', '3-2', '4-1', '4-2', '5-1'].includes(lesson)) {
         run('npm', ['rebuild', '@parts/fast-hash', '--ignore-scripts=false'], api, env);
         run('npm', ['test'], api, env);
-        if (lesson === '4-2') run('npm', ['install', 'minimist@0.2.4', '--no-audit', '--no-fund', '--ignore-scripts'], api, env);
+        if (['4-2', '5-1'].includes(lesson)) run('npm', ['install', 'minimist@0.2.4', '--no-audit', '--no-fund', '--ignore-scripts'], api, env);
         if (['3-2', '4-1', '4-2'].includes(lesson) || at === 'done') {
           fs.mkdirSync(path.join(api, 'sbom'), { recursive: true });
           run('make', ['sbom']);
@@ -273,6 +294,24 @@ try {
               run('git', ['apply', '-R', patch]);
             }
             recordMake(['vex-lint'], path.join(evidence, 'lint-restored.txt'));
+          }
+        }
+        if (lesson === '5-1') {
+          run('make', ['seed-release']);
+          run('make', ['release-fixtures']);
+          if (at === 'done') {
+            const evidence = path.join(lab, 'lesson-5-1');
+            for (const version of ['1.0.0', '1.1.0']) {
+              recordCommand('./bin/syft', ['scan', `dir:fixtures/releases/${version}`, '--source-name', 'parts-api', '--source-version', version, '-o', `cyclonedx-json=.lab/sbom-${version}.cdx.json`], path.join(evidence, `sbom-${version}.txt`));
+            }
+            run('make', ['down']);
+            recordMake(['dt-up'], path.join(evidence, 'dt-up.txt'));
+            recordMake(['dt-setup-5-1'], path.join(evidence, 'setup.txt'));
+            for (const version of ['1.0.0', '1.1.0']) {
+              recordMake(['dt-upload', `V=${version}`, `SBOM=.lab/sbom-${version}.cdx.json`], path.join(evidence, `upload-${version}.txt`));
+            }
+            run('make', ['collector-clear']);
+            recordMake(['dt-new-vuln', 'REPLAY=1'], path.join(evidence, 'new-vulnerability.txt'));
           }
         }
       }

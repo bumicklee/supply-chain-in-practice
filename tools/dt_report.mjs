@@ -2,16 +2,15 @@ import { readFileSync } from 'node:fs';
 
 const key = readFileSync('.lab/dt-api-key', 'utf8').trim();
 const base = 'http://127.0.0.1:8181/api/v1';
-const get = async path => {
-  const response = await fetch(`${base}${path}`, {
+
+const versions = process.argv.slice(2);
+for (const version of versions.length ? versions : ['1.0.0', '1.1.0', '1.2.0']) {
+  const response = await fetch(`${base}/project/lookup?name=parts-api&version=${version}`, {
     headers: { 'X-Api-Key': key }, signal: AbortSignal.timeout(30_000),
   });
-  if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
-  return response.json();
-};
-
-for (const version of ['1.0.0', '1.1.0', '1.2.0']) {
-  const project = await get(`/project/lookup?name=parts-api&version=${version}`);
+  if (response.status === 404 && versions.length === 0) continue;
+  if (!response.ok) throw new Error(`parts-api ${version}: HTTP ${response.status}`);
+  const project = await response.json();
   const metrics = project.metrics || {};
   console.log(JSON.stringify({
     version, project: project.uuid, components: metrics.components,
