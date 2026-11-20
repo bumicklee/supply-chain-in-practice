@@ -18,12 +18,15 @@ mkdirSync(work, { recursive: true });
 mkdirSync(installed, { recursive: true });
 mkdirSync(output, { recursive: true });
 for (const name of ['package.json', 'package-lock.json']) cpSync(`parts-api/${name}`, join(work, name));
-for (const name of ['src', 'vendor']) cpSync(`parts-api/${name}`, join(work, name), { recursive: true, force: true });
+for (const name of ['src', 'test', 'vendor']) cpSync(`parts-api/${name}`, join(work, name), { recursive: true, force: true });
 const run = (command, args, cwd) => {
   console.log(`$ ${command} ${args.join(' ')}`);
   const result = spawnSync(command, args, { cwd, encoding: 'utf8', stdio: 'inherit', env: { ...process.env, NPM_CONFIG_CACHE: join(root, '.lab/npm-cache-release') } });
   if (result.status !== 0) process.exit(result.status ?? 1);
 };
+run('npm', ['ci', '--ignore-scripts', '--registry=https://registry.npmjs.org/', '--replace-registry-host=never'], work);
+run('npm', ['rebuild', '@parts/fast-hash', '--ignore-scripts=false'], work);
+run('npm', ['test'], work);
 run('npm', ['shrinkwrap', '--offline'], work);
 run('npm', ['pack', '--ignore-scripts'], work);
 const tgzName = `parts-api-${version}.tgz`;
