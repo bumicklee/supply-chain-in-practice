@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 DT_WAIT_SECONDS ?= 900
-.PHONY: help doctor compose-id up down status where goto check seed seed-release release-fixtures attack attack-undo scope-cache-clear padder-cache-refresh collector-log collector-clear markers grype-db sbom ntia-check triage-check vex-lint pack-matrix vendor vendor-check release-local release-compare deploy verify-offline dt-up dt-down dt-status dt-key dt-upload dt-report dt-new-vuln pr-gate-local maven-up maven-down
+.PHONY: help doctor compose-id up down status where goto check seed seed-release release-fixtures attack attack-undo scope-cache-clear padder-cache-refresh collector-log collector-clear markers grype-db sbom ntia-check kev-check triage-check vex-lint pack-matrix vendor vendor-check release-local release-compare deploy verify-offline dt-up dt-down dt-status dt-key dt-upload dt-report dt-new-vuln pr-gate-local maven-up maven-down
 
 help:
 	@printf 'make doctor | up | down | status | seed | attack A=<이름> | collector-log | collector-clear | markers\n'
@@ -66,14 +66,16 @@ markers:
 	@find .lab/markers -type f -maxdepth 1 -print 2>/dev/null || true
 
 grype-db:
-	@if [ ! -f .lab/grype-db/6/vulnerability.db ]; then ./bin/grype db update; fi
-	@./bin/grype db status
+	@node tools/ensure_grype_db.mjs
 
 sbom:
 	@v=$$(node -p "require('./parts-api/package.json').version"); ./bin/syft scan dir:parts-api --source-name parts-api --source-version "$$v" -o cyclonedx-json=parts-api/sbom/parts-api.cdx.json -o spdx-json=parts-api/sbom/parts-api.spdx.json -o syft-json=parts-api/sbom/parts-api.syft.json
 
 ntia-check:
 	@node tools/ntia_check.mjs '$(SBOM)'
+
+kev-check:
+	@node tools/kev_check.mjs '$(if $(SCAN),$(SCAN),.lab/lesson-4-1/scan-before.json)'
 
 triage-check:
 	@node tools/triage_check.mjs

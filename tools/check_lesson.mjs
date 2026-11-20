@@ -27,7 +27,7 @@ if (!/^\d+-\d+$/.test(lesson)) {
   console.error('사용법: make check L=N-M');
   process.exit(2);
 }
-if (!['1-1', '2-1', '2-2', '2-3', '2-4', '3-1', '3-2'].includes(lesson)) {
+if (!['1-1', '2-1', '2-2', '2-3', '2-4', '3-1', '3-2', '4-1'].includes(lesson)) {
   console.error(`✗ ${lesson} 끝 상태 확인은 아직 구현되지 않았습니다.`);
   process.exit(2);
 }
@@ -54,7 +54,7 @@ check(fs.existsSync(path.join(root, 'parts-api', 'node_modules')),
 const pkg = path.join(root, 'parts-api', 'package.json');
 let deps = {};
 try { deps = JSON.parse(fs.readFileSync(pkg, 'utf8')).dependencies || {}; } catch {}
-const name = ['2-2', '2-3', '2-4', '3-1', '3-2'].includes(lesson) ? '@parts/price-rules' : 'price-rules';
+const name = ['2-2', '2-3', '2-4', '3-1', '3-2', '4-1'].includes(lesson) ? '@parts/price-rules' : 'price-rules';
 check(Object.hasOwn(deps, name),
   `${name} 이름으로 설치를 준비함`, `${name} 의존성이 없습니다. 현재 파일은 다른 수업 지점일 수 있습니다.`);
 
@@ -149,7 +149,7 @@ if (lesson === '1-1') {
     check(tested.status === 0 && /pass 5/.test(tested.stdout),
       '예외 패키지 재빌드 뒤 API 시험 5건 통과', 'API 시험이 통과하지 않습니다. @parts/fast-hash만 다시 빌드하세요.');
   }
-  if (['3-1', '3-2'].includes(lesson)) {
+  if (['3-1', '3-2', '4-1'].includes(lesson)) {
     const api = path.join(root, 'parts-api');
     check(Object.hasOwn(deps, '@parts/fast-hash') && fs.existsSync(path.join(api, 'node_modules', '@parts', 'fast-hash', 'build', 'binding.js')),
       '앞 수업에서 필요한 사내 빌드 결과 유지', '@parts/fast-hash 빌드 파일이 없습니다. npm rebuild @parts/fast-hash --ignore-scripts=false를 실행하세요.');
@@ -170,6 +170,27 @@ if (lesson === '1-1') {
       const output = fs.existsSync(report) ? fs.readFileSync(report, 'utf8') : '';
       check(output.includes('공급자 이름') && output.includes('의존 관계') && output.includes('결과:'),
         '최소 요소 일곱 칸 점검 결과 보관', '최소 요소 점검표가 없습니다. make ntia-check SBOM=parts-api/sbom/parts-api.cdx.json을 실행하세요.');
+    }
+    if (lesson === '4-1') {
+      const pre = path.join(root, '.lab', 'lesson-4-1');
+      const severity = fs.existsSync(path.join(pre, 'severity-before.txt')) ? fs.readFileSync(path.join(pre, 'severity-before.txt'), 'utf8') : '';
+      const epss = fs.existsSync(path.join(pre, 'epss-before.txt')) ? fs.readFileSync(path.join(pre, 'epss-before.txt'), 'utf8') : '';
+      const after = fs.existsSync(path.join(pre, 'severity-after.txt')) ? fs.readFileSync(path.join(pre, 'severity-after.txt'), 'utf8') : '';
+      const first = output => output.split('\n').find(line => /^\S+\s+\d+\.\d+\.\d+\s/.test(line)) || '';
+      check(first(severity).startsWith('minimist ') && first(epss).startsWith('lodash '),
+        '심각도 순과 EPSS 순의 맨 위가 실제로 다름', '두 정렬 결과가 없습니다. make goto L=4-1에서 검사 출력을 만들고 비교하세요.');
+      const kev = path.join(pre, 'kev.txt');
+      check(fs.existsSync(kev) && fs.readFileSync(kev, 'utf8').includes('KEV 일치: 0건'),
+        '고정 CISA 목록과 CVE 별칭을 대조해 KEV 일치 0건 기록', 'KEV 대조 결과가 없습니다. make kev-check로 고정 목록을 확인하세요.');
+      const min = lock.packages?.['node_modules/minimist'];
+      check(min?.version === '0.2.4' && !after.includes('minimist        0.0.8'),
+        'minimist 0.2.4로 고치고 SBOM 재검사', 'minimist 0.2.4 설치 뒤 make sbom과 Grype 재검사를 실행하세요.');
+      const triage = run('make', ['triage-check']);
+      check(triage.status === 0 && triage.stdout.includes('2 passed, 0 failed'),
+        '고침·미룸 기록과 기한 점검 통과', 'policy/triage.yaml에 고침과 미룸의 사유·담당·기한을 적고 make triage-check를 실행하세요.');
+      const saved = path.join(pre, 'triage.txt');
+      check(fs.existsSync(saved) && fs.readFileSync(saved, 'utf8').includes('2 passed, 0 failed'),
+        '4-1 끝 상태의 판단 점검 출력 보관', '판단 점검 출력이 없습니다. make goto L=4-1 AT=done을 실행하세요.');
     }
   }
 }

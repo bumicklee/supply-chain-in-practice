@@ -1,0 +1,12 @@
+decisions:
+  - id: GHSA-xvch-5gv4-984h
+    package: minimist
+    decision: fix
+    reason: 실제 수정 버전 0.2.4로 올려 잠금 파일을 갱신함
+    owner: parts-api-team
+  - id: GHSA-35jh-r3h4-6jhm
+    package: lodash
+    decision: defer
+    reason: template 호출 경로를 조사하고 VEX 판단을 재검토함
+    due: 2026-12-01
+    owner: parts-api-team

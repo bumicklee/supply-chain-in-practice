@@ -23,8 +23,9 @@ const generated = [
   'parts-api/sbom/parts-api.spdx.json',
   'parts-api/sbom/parts-api.syft.json',
 ];
-if (!['1-1', '2-1', '2-2', '2-3', '2-4', '3-1', '3-2'].includes(lesson) || !['start', 'done'].includes(at)) {
-  console.error('사용법: make goto L=1-1|2-1|2-2|2-3|2-4|3-1|3-2 [AT=done] [FORCE=1]');
+const policy = 'policy/triage.yaml';
+if (!['1-1', '2-1', '2-2', '2-3', '2-4', '3-1', '3-2', '4-1'].includes(lesson) || !['start', 'done'].includes(at)) {
+  console.error('사용법: make goto L=1-1|2-1|2-2|2-3|2-4|3-1|3-2|4-1 [AT=done] [FORCE=1]');
   console.error('다른 수업의 지점은 아직 구현되지 않았습니다.');
   process.exit(2);
 }
@@ -67,11 +68,28 @@ function recordMake(args, output) {
   process.stderr.write(result.stderr || '');
   if (result.status !== 0) throw new Error(`make ${args[0]} 종료 코드 ${result.status ?? '없음'}`);
 }
+function recordCommand(command, args, output) {
+  console.log(`$ ${command} ${args.join(' ')}`);
+  const result = spawnSync(command, args, { cwd: root, encoding: 'utf8', timeout: 900_000 });
+  if (result.error) throw result.error;
+  fs.mkdirSync(path.dirname(output), { recursive: true });
+  fs.writeFileSync(output, `# 명령: ${command} ${args.join(' ')}\n# 종료 코드: ${result.status ?? '없음'}\n${result.stdout || ''}${result.stderr || ''}`);
+  if (result.status !== 0) throw new Error(`${command} 종료 코드 ${result.status ?? '없음'}`);
+}
+function recordJson(command, args, output) {
+  console.log(`$ ${command} ${args.join(' ')}`);
+  const result = spawnSync(command, args, { cwd: root, encoding: 'utf8', timeout: 900_000 });
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error(`${command} 종료 코드 ${result.status ?? '없음'}: ${result.stderr || ''}`);
+  JSON.parse(result.stdout);
+  fs.mkdirSync(path.dirname(output), { recursive: true });
+  fs.writeFileSync(output, result.stdout);
+}
 
 try {
   const template = path.join(root, 'solutions', 'checkpoints', '1-1');
   const previous = fs.existsSync(stateFile) ? JSON.parse(fs.readFileSync(stateFile, 'utf8')) : null;
-  const changed = [...files, ...generated].filter(rel => {
+  const changed = [...files, ...generated, policy].filter(rel => {
     const expected = previous?.hashes?.[rel] ?? hash(path.join(template, rel));
     return hash(path.join(root, rel)) !== expected;
   });
@@ -97,27 +115,34 @@ try {
 
   run('node', ['tools/compose_id.mjs']);
   run('docker', ['compose', 'down', '-v', '--remove-orphans']);
-  for (const rel of ['.lab/seeded', '.lab/seed.npmrc', '.lab/env', '.lab/markers', '.lab/collector.log', '.lab/npm-cache-2-1', '.lab/lesson-2-3', '.lab/lesson-2-4', '.lab/lesson-3-2']) remove(rel);
+  for (const rel of ['.lab/seeded', '.lab/seed.npmrc', '.lab/env', '.lab/markers', '.lab/collector.log', '.lab/npm-cache-2-1', '.lab/lesson-2-3', '.lab/lesson-2-4', '.lab/lesson-3-2', '.lab/lesson-4-1']) remove(rel);
   remove('parts-api/node_modules');
   for (const rel of generated) remove(rel);
+  remove(policy);
   for (const rel of files) {
     const destination = path.join(root, rel);
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     fs.copyFileSync(path.join(template, rel), destination);
   }
-  const scopedBase = ['2-3', '2-4', '3-1', '3-2'].includes(lesson) || lesson === '2-2' && at === 'done';
+  const scopedBase = ['2-3', '2-4', '3-1', '3-2', '4-1'].includes(lesson) || lesson === '2-2' && at === 'done';
   if (scopedBase) {
     for (const rel of files.filter(item => item !== 'parts-api/package-lock.json')) {
       fs.copyFileSync(path.join(root, 'solutions', 'checkpoints', '2-2', rel), path.join(root, rel));
     }
   }
-  if (['2-4', '3-1', '3-2'].includes(lesson)) {
+  if (['2-4', '3-1', '3-2', '4-1'].includes(lesson)) {
     for (const rel of ['parts-api/package.json', 'parts-api/src/app.js']) {
       fs.copyFileSync(path.join(root, 'solutions', 'checkpoints', '2-4', 'start', rel), path.join(root, rel));
     }
   }
-  if (['3-1', '3-2'].includes(lesson)) {
+  if (['3-1', '3-2', '4-1'].includes(lesson)) {
     fs.copyFileSync(path.join(root, 'solutions', 'checkpoints', '2-4', 'done', 'parts-api', '.npmrc'), path.join(root, 'parts-api', '.npmrc'));
+  }
+  if (lesson === '4-1') {
+    const source = path.join(root, 'solutions', 'checkpoints', '4-1', at, policy);
+    const destination = path.join(root, policy);
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.copyFileSync(source, destination);
   }
 
   if (at === 'done' || lesson !== '1-1') {
@@ -182,15 +207,31 @@ try {
         if (fs.existsSync(collector) && fs.statSync(collector).size !== 0) throw new Error('스크립트 차단 후 수집기 기록이 새로 생겼습니다.');
         fs.writeFileSync(path.join(evidence, 'collector-after.txt'), '# ignore-scripts=true 뒤 수집기 기록 0바이트\n');
       }
-      if (['3-1', '3-2'].includes(lesson)) {
+      if (['3-1', '3-2', '4-1'].includes(lesson)) {
         run('npm', ['rebuild', '@parts/fast-hash', '--ignore-scripts=false'], api, env);
         run('npm', ['test'], api, env);
-        if (lesson === '3-2' || at === 'done') {
+        if (['3-2', '4-1'].includes(lesson) || at === 'done') {
           fs.mkdirSync(path.join(api, 'sbom'), { recursive: true });
           run('make', ['sbom']);
         }
         if (lesson === '3-2' && at === 'done') {
           recordMake(['ntia-check', 'SBOM=parts-api/sbom/parts-api.cdx.json'], path.join(lab, 'lesson-3-2', 'ntia.txt'));
+        }
+        if (lesson === '4-1') {
+          run('make', ['grype-db']);
+          const evidence = path.join(lab, 'lesson-4-1');
+          const sbom = 'sbom:parts-api/sbom/parts-api.cdx.json';
+          recordCommand('./bin/grype', [sbom, '--sort-by', 'severity'], path.join(evidence, 'severity-before.txt'));
+          recordCommand('./bin/grype', [sbom, '--sort-by', 'epss'], path.join(evidence, 'epss-before.txt'));
+          recordJson('./bin/grype', [sbom, '-o', 'json'], path.join(evidence, 'scan-before.json'));
+          recordMake(['kev-check'], path.join(evidence, 'kev.txt'));
+          if (at === 'done') {
+            run('npm', ['install', 'minimist@0.2.4', '--no-audit', '--no-fund', '--ignore-scripts'], api, env);
+            run('make', ['sbom']);
+            recordCommand('./bin/grype', [sbom, '--sort-by', 'severity'], path.join(evidence, 'severity-after.txt'));
+            recordJson('./bin/grype', [sbom, '-o', 'json'], path.join(evidence, 'scan-after.json'));
+            recordMake(['triage-check'], path.join(lab, 'lesson-4-1', 'triage.txt'));
+          }
         }
       }
     } else if (lesson === '2-1' && at === 'done' || lesson === '2-2' && at === 'start') {
@@ -202,7 +243,7 @@ try {
     }
   }
 
-  const hashes = Object.fromEntries([...files, ...generated].map(rel => [rel, hash(path.join(root, rel))]));
+  const hashes = Object.fromEntries([...files, ...generated, policy].map(rel => [rel, hash(path.join(root, rel))]));
   fs.writeFileSync(stateFile, JSON.stringify({ lesson, at, hashes }, null, 2) + '\n');
   fs.writeFileSync(path.join(lab, 'checkpoint.json'), JSON.stringify({ lesson, at }) + '\n');
   console.log(`지점: ${lesson} ${at === 'done' ? '끝' : '시작'}`);
