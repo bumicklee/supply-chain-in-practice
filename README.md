@@ -1,6 +1,6 @@
 # 공급망 보안 실습장
 
-현재 저장소는 강의 제작용 실측판입니다. `student-baseline` 가지에는 1-1과 2-1~6-1의 `make goto`·`make check`가 구현되어 있습니다. 전체 17개 수업을 차례로 진행하는 수강생용 완료본은 아닙니다.
+현재 저장소는 강의 제작용 실측판입니다. `student-baseline` 가지에는 1-1과 2-1~6-2의 `make goto`·`make check`가 구현되어 있습니다. 전체 17개 수업을 차례로 진행하는 수강생용 완료본은 아닙니다.
 
 Git은 모든 수강생에게 필수입니다. GitHub 계정이 있으면 공개 저장소를 포크하고, 없으면 원본 저장소를 Git으로 클론해 로컬 가지와 커밋으로 실습합니다.
 
@@ -16,7 +16,7 @@ cd .. && make check L=1-1
 
 Docker, Node.js 22, npm, make, jq, curl이 필요합니다. Gradle 수업은 JDK 17 이상도 필요합니다. `make doctor`가 설치 상태를 보여 줍니다. 처음 `make up`과 `npm ci`는 공개 패키지를 받느라 시간이 걸릴 수 있습니다.
 
-구현된 지점은 1-1과 2-1~6-1 수업마다 `make goto L=<수업>`, `make goto L=<수업> AT=done`입니다. `make where`로 현재 위치를 봅니다. 지점 이동은 이 클론의 Docker 레지스트리 볼륨을 새로 만들지만 Dependency-Track 볼륨은 유지합니다. 6-1은 별도의 Maven 역할 저장소 두 개를 초기화합니다. 고친 수업 파일이 있으면 이동을 멈춥니다. 직접 변경 내용을 저장하거나 `FORCE=1`을 주면 덮어쓰기 전 사본을 `.lab/backup/`에 남깁니다. 같은 포트를 쓰는 다른 클론의 서비스를 먼저 내려야 합니다.
+구현된 지점은 1-1과 2-1~6-2 수업마다 `make goto L=<수업>`, `make goto L=<수업> AT=done`입니다. `make where`로 현재 위치를 봅니다. 지점 이동은 이 클론의 Docker 레지스트리 볼륨을 새로 만들지만 Dependency-Track 볼륨은 유지합니다. 6-1과 6-2는 별도의 Maven 역할 저장소 두 개를 사용합니다. 고친 수업 파일이 있으면 이동을 멈춥니다. 직접 변경 내용을 저장하거나 `FORCE=1`을 주면 덮어쓰기 전 사본을 `.lab/backup/`에 남깁니다. 같은 포트를 쓰는 다른 클론의 서비스를 먼저 내려야 합니다.
 
 4-2 VEX 실습의 억제 장면은 `parts-api/sbom/parts-api.syft.json`을 스캐너 입력으로 씁니다. CycloneDX 입력으로는 이 VEX의 대상 경보가 억제되지 않았습니다. `make goto L=4-2`는 조사 중 문서를, `AT=done`은 영향 없음 문서와 코드 변경 재연·되돌림 기록을 만듭니다.
 
@@ -25,6 +25,8 @@ Docker, Node.js 22, npm, make, jq, curl이 필요합니다. Gradle 수업은 JDK
 5-1의 기본 `make dt-up`은 빈 Dependency-Track 데이터 볼륨에 교육용 NVD 캐시를 만들어 외부 취약점 이력 동기화를 건너뜁니다. 이 수업은 `INT-LAB-0001`이라는 실습용 내부 취약점으로 재분석과 웹훅을 확인합니다. 실제 공개 취약점 감시 결과로 해석하지 마세요. `make dt-bootstrap`은 첫 관리자 암호를 바꾸고 팀 API 키를 `.lab/`에 보관합니다. 화면에 암호나 키를 출력하지 않습니다. 이미 직접 첫 로그인과 키 발급을 마쳤다면 이 명령을 생략합니다. `DT_FAST=0 make dt-up`은 빈 볼륨에서 실제 외부 데이터 동기화를 시작할 수 있으며 완료까지 오래 걸릴 수 있습니다.
 
 5-2의 `make goto/check`는 이 저장소에 남은 Git PR 커밋을 고정 Grype DB로 비교하는 로컬 경로입니다. 실제 GitHub PR을 재연할 때는 포크의 `main`을 **별도 폴더에 클론**해 가지를 만드세요. `student-baseline`에는 이미 취약 버전 `minimist@0.0.8`이 있어 그 가지에서 시작하면 PR의 변경 한 줄을 보여 주기 어렵습니다. 검사 실패가 머지를 기술적으로 막으려면 저장소의 가지 보호 규칙에서 해당 상태 검사를 필수로 지정해야 합니다.
+
+6-2의 기본 경로는 `build` 작업에서 jar와 POM의 SHA-256을 기록합니다. 같은 버전으로 바꿔 친 `text-utils` jar가 검증에 실패한 뒤 원본 복구와 `pricing` 버전 변경까지 재연합니다. `help` 작업만으로는 이 실습의 의존성을 충분히 기록하지 못했습니다. PGP 키를 내보낸 저자용 예시는 키 0개였으므로 서명 검증 성공의 증거로 사용하지 않습니다.
 
 2-4에서 공개 역할 저장소에 `string-padder@2.4.1`을 올린 뒤 사내 주소가 예전 2.4.0 목록만 보여 `ETARGET`이 나면 `make padder-cache-refresh`로 해당 목록만 새로 읽습니다. `make goto L=2-4 AT=done`은 이 단계를 자동으로 실행합니다.
 
@@ -38,7 +40,7 @@ Docker, Node.js 22, npm, make, jq, curl이 필요합니다. Gradle 수업은 JDK
 | 5-1 | `make goto L=5-1`, `make dt-up`, `make dt-bootstrap`, `make goto L=5-1 AT=done`, `make check L=5-1` | 두 릴리스의 SBOM, 내부 취약점, 정책과 실제 웹훅 |
 | 5-2 | `make goto L=5-2`, `make goto L=5-2 AT=done`, `make check L=5-2` | Git 커밋 차이에서 취약 `minimist@0.0.8` 실패·수정 `1.2.8` 통과 |
 | 6-1 | `make goto L=6-1`, `make goto L=6-1 AT=done`, `make check L=6-1` | 공개 8082의 1.99.0과 칸막이 뒤 사내 8081의 1.3.0 |
-| 6-2 | `make maven-up`, `gradle-lib/` | Gradle 검증 메타데이터(학생 지점 구현 전) |
+| 6-2 | `make goto L=6-2`, `make goto L=6-2 AT=done`, `make check L=6-2` | SHA-256 기록, 바꿔 친 jar 실패, 복구와 버전 변경 |
 | 7-1~7-2 | `make vendor`, `make vendor-check`, `make release-local V=<버전>`, `make deploy TGZ=<파일> TAG=<태그>`, `make verify-offline` | tarball·SBOM·증명과 배포 전 검증 |
 
 6-3 Android 수업의 소스와 미리 빌드한 결과물은 공개 범위 검토 전까지 이 저장소에 포함하지 않습니다. GitHub 경로에서는 공개 포크의 PR 검사와 태그 릴리스를 사용합니다. 계정이 없으면 로컬 관문과 `make release-local`까지 수행할 수 있습니다. 로컬 릴리스에는 GitHub 출처 증명이 붙지 않습니다.
