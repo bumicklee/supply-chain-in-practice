@@ -1,6 +1,6 @@
 # 공급망 보안 실습장
 
-현재 저장소는 강의 제작용 실측판입니다. `student-baseline` 가지에는 1-1과 2-1~5-2의 `make goto`·`make check`가 구현되어 있습니다. 전체 17개 수업을 차례로 진행하는 수강생용 완료본은 아닙니다.
+현재 저장소는 강의 제작용 실측판입니다. `student-baseline` 가지에는 1-1과 2-1~6-1의 `make goto`·`make check`가 구현되어 있습니다. 전체 17개 수업을 차례로 진행하는 수강생용 완료본은 아닙니다.
 
 Git은 모든 수강생에게 필수입니다. GitHub 계정이 있으면 공개 저장소를 포크하고, 없으면 원본 저장소를 Git으로 클론해 로컬 가지와 커밋으로 실습합니다.
 
@@ -16,7 +16,7 @@ cd .. && make check L=1-1
 
 Docker, Node.js 22, npm, make, jq, curl이 필요합니다. Gradle 수업은 JDK 17 이상도 필요합니다. `make doctor`가 설치 상태를 보여 줍니다. 처음 `make up`과 `npm ci`는 공개 패키지를 받느라 시간이 걸릴 수 있습니다.
 
-구현된 지점은 1-1과 2-1~5-2 수업마다 `make goto L=<수업>`, `make goto L=<수업> AT=done`입니다. `make where`로 현재 위치를 봅니다. 지점 이동은 이 클론의 Docker 레지스트리 볼륨을 새로 만들지만 Dependency-Track 볼륨은 유지합니다. 고친 수업 파일이 있으면 이동을 멈춥니다. 직접 변경 내용을 저장하거나 `FORCE=1`을 주면 덮어쓰기 전 사본을 `.lab/backup/`에 남깁니다. 같은 포트를 쓰는 다른 클론의 서비스를 먼저 내려야 합니다.
+구현된 지점은 1-1과 2-1~6-1 수업마다 `make goto L=<수업>`, `make goto L=<수업> AT=done`입니다. `make where`로 현재 위치를 봅니다. 지점 이동은 이 클론의 Docker 레지스트리 볼륨을 새로 만들지만 Dependency-Track 볼륨은 유지합니다. 6-1은 별도의 Maven 역할 저장소 두 개를 초기화합니다. 고친 수업 파일이 있으면 이동을 멈춥니다. 직접 변경 내용을 저장하거나 `FORCE=1`을 주면 덮어쓰기 전 사본을 `.lab/backup/`에 남깁니다. 같은 포트를 쓰는 다른 클론의 서비스를 먼저 내려야 합니다.
 
 4-2 VEX 실습의 억제 장면은 `parts-api/sbom/parts-api.syft.json`을 스캐너 입력으로 씁니다. CycloneDX 입력으로는 이 VEX의 대상 경보가 억제되지 않았습니다. `make goto L=4-2`는 조사 중 문서를, `AT=done`은 영향 없음 문서와 코드 변경 재연·되돌림 기록을 만듭니다.
 
@@ -37,7 +37,8 @@ Docker, Node.js 22, npm, make, jq, curl이 필요합니다. Gradle 수업은 JDK
 | 4-1~4-2 | `make grype-db`, `make triage-check`, `make vex-lint` | 취약점 우선순위와 VEX 근거 |
 | 5-1 | `make goto L=5-1`, `make dt-up`, `make dt-bootstrap`, `make goto L=5-1 AT=done`, `make check L=5-1` | 두 릴리스의 SBOM, 내부 취약점, 정책과 실제 웹훅 |
 | 5-2 | `make goto L=5-2`, `make goto L=5-2 AT=done`, `make check L=5-2` | Git 커밋 차이에서 취약 `minimist@0.0.8` 실패·수정 `1.2.8` 통과 |
-| 6-1~6-2 | `make maven-up`, `gradle-lib/`, `solutions/6-1-before.settings.gradle.kts` | 저장소 선택과 Gradle 검증 메타데이터 |
+| 6-1 | `make goto L=6-1`, `make goto L=6-1 AT=done`, `make check L=6-1` | 공개 8082의 1.99.0과 칸막이 뒤 사내 8081의 1.3.0 |
+| 6-2 | `make maven-up`, `gradle-lib/` | Gradle 검증 메타데이터(학생 지점 구현 전) |
 | 7-1~7-2 | `make vendor`, `make vendor-check`, `make release-local V=<버전>`, `make deploy TGZ=<파일> TAG=<태그>`, `make verify-offline` | tarball·SBOM·증명과 배포 전 검증 |
 
 6-3 Android 수업의 소스와 미리 빌드한 결과물은 공개 범위 검토 전까지 이 저장소에 포함하지 않습니다. GitHub 경로에서는 공개 포크의 PR 검사와 태그 릴리스를 사용합니다. 계정이 없으면 로컬 관문과 `make release-local`까지 수행할 수 있습니다. 로컬 릴리스에는 GitHub 출처 증명이 붙지 않습니다.

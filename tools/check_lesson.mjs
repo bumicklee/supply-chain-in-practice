@@ -37,6 +37,11 @@ if (lesson === '5-2') {
   if (result.error) console.error(result.error.message);
   process.exit(result.status ?? 1);
 }
+if (lesson === '6-1') {
+  const result = spawnSync('node', ['tools/check_gradle_6_1.mjs'], { cwd: root, stdio: 'inherit', timeout: 180_000 });
+  if (result.error) console.error(result.error.message);
+  process.exit(result.status ?? 1);
+}
 if (!['1-1', '2-1', '2-2', '2-3', '2-4', '3-1', '3-2', '4-1', '4-2'].includes(lesson)) {
   console.error(`✗ ${lesson} 끝 상태 확인은 아직 구현되지 않았습니다.`);
   process.exit(2);
