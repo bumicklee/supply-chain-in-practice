@@ -25,8 +25,8 @@ const generated = [
 ];
 const policy = 'policy/triage.yaml';
 const vex = 'vex/parts-api.openvex.json';
-if (!['1-1', '2-1', '2-2', '2-3', '2-4', '3-1', '3-2', '4-1', '4-2', '5-1'].includes(lesson) || !['start', 'done'].includes(at)) {
-  console.error('사용법: make goto L=1-1|2-1|2-2|2-3|2-4|3-1|3-2|4-1|4-2|5-1 [AT=done] [FORCE=1]');
+if (!['1-1', '2-1', '2-2', '2-3', '2-4', '3-1', '3-2', '4-1', '4-2', '5-1', '5-2'].includes(lesson) || !['start', 'done'].includes(at)) {
+  console.error('사용법: make goto L=1-1|2-1|2-2|2-3|2-4|3-1|3-2|4-1|4-2|5-1|5-2 [AT=done] [FORCE=1]');
   console.error('다른 수업의 지점은 아직 구현되지 않았습니다.');
   process.exit(2);
 }
@@ -127,7 +127,7 @@ try {
     const found = spawnSync('docker', ['volume', 'inspect', name], { cwd: root, stdio: 'ignore' });
     if (found.status === 0) run('docker', ['volume', 'rm', name]);
   }
-  for (const rel of ['.lab/seeded', '.lab/seed.npmrc', '.lab/env', '.lab/markers', '.lab/collector.log', '.lab/npm-cache-2-1', '.lab/lesson-2-3', '.lab/lesson-2-4', '.lab/lesson-3-2', '.lab/lesson-4-1', '.lab/lesson-4-2', '.lab/lesson-5-1', '.lab/sbom-1.0.0.cdx.json', '.lab/sbom-1.1.0.cdx.json']) remove(rel);
+  for (const rel of ['.lab/seeded', '.lab/seed.npmrc', '.lab/env', '.lab/markers', '.lab/collector.log', '.lab/npm-cache-2-1', '.lab/lesson-2-3', '.lab/lesson-2-4', '.lab/lesson-3-2', '.lab/lesson-4-1', '.lab/lesson-4-2', '.lab/lesson-5-1', '.lab/lesson-5-2', '.lab/sbom-1.0.0.cdx.json', '.lab/sbom-1.1.0.cdx.json']) remove(rel);
   remove('parts-api/node_modules');
   for (const rel of generated) remove(rel);
   remove(policy);
@@ -137,18 +137,18 @@ try {
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     fs.copyFileSync(path.join(template, rel), destination);
   }
-  const scopedBase = ['2-3', '2-4', '3-1', '3-2', '4-1', '4-2', '5-1'].includes(lesson) || lesson === '2-2' && at === 'done';
+  const scopedBase = ['2-3', '2-4', '3-1', '3-2', '4-1', '4-2', '5-1', '5-2'].includes(lesson) || lesson === '2-2' && at === 'done';
   if (scopedBase) {
     for (const rel of files.filter(item => item !== 'parts-api/package-lock.json')) {
       fs.copyFileSync(path.join(root, 'solutions', 'checkpoints', '2-2', rel), path.join(root, rel));
     }
   }
-  if (['2-4', '3-1', '3-2', '4-1', '4-2', '5-1'].includes(lesson)) {
+  if (['2-4', '3-1', '3-2', '4-1', '4-2', '5-1', '5-2'].includes(lesson)) {
     for (const rel of ['parts-api/package.json', 'parts-api/src/app.js']) {
       fs.copyFileSync(path.join(root, 'solutions', 'checkpoints', '2-4', 'start', rel), path.join(root, rel));
     }
   }
-  if (['3-1', '3-2', '4-1', '4-2', '5-1'].includes(lesson)) {
+  if (['3-1', '3-2', '4-1', '4-2', '5-1', '5-2'].includes(lesson)) {
     fs.copyFileSync(path.join(root, 'solutions', 'checkpoints', '2-4', 'done', 'parts-api', '.npmrc'), path.join(root, 'parts-api', '.npmrc'));
   }
   if (lesson === '4-1') {
@@ -167,7 +167,7 @@ try {
       fs.copyFileSync(source, destination);
     }
   }
-  if (lesson === '5-1') {
+  if (lesson === '5-1' || lesson === '5-2') {
     for (const [rel, source] of [
       [policy, path.join(root, 'solutions', 'checkpoints', '4-1', 'done', policy)],
       [vex, path.join(root, 'solutions', 'checkpoints', '4-2', 'done', vex)],
@@ -240,11 +240,12 @@ try {
         if (fs.existsSync(collector) && fs.statSync(collector).size !== 0) throw new Error('스크립트 차단 후 수집기 기록이 새로 생겼습니다.');
         fs.writeFileSync(path.join(evidence, 'collector-after.txt'), '# ignore-scripts=true 뒤 수집기 기록 0바이트\n');
       }
-      if (['3-1', '3-2', '4-1', '4-2', '5-1'].includes(lesson)) {
+      if (['3-1', '3-2', '4-1', '4-2', '5-1', '5-2'].includes(lesson)) {
         run('npm', ['rebuild', '@parts/fast-hash', '--ignore-scripts=false'], api, env);
         run('npm', ['test'], api, env);
         if (['4-2', '5-1'].includes(lesson)) run('npm', ['install', 'minimist@0.2.4', '--no-audit', '--no-fund', '--ignore-scripts'], api, env);
-        if (['3-2', '4-1', '4-2'].includes(lesson) || at === 'done') {
+        if (lesson === '5-2') run('npm', ['install', `minimist@${at === 'done' ? '1.2.8' : '0.0.8'}`, '--no-audit', '--no-fund', '--ignore-scripts'], api, env);
+        if (['3-2', '4-1', '4-2', '5-2'].includes(lesson) || at === 'done') {
           fs.mkdirSync(path.join(api, 'sbom'), { recursive: true });
           run('make', ['sbom']);
         }
@@ -312,6 +313,30 @@ try {
             }
             run('make', ['collector-clear']);
             recordMake(['dt-new-vuln', 'REPLAY=1'], path.join(evidence, 'new-vulnerability.txt'));
+          }
+        }
+        if (lesson === '5-2' && at === 'done') {
+          const evidence = path.join(lab, 'lesson-5-2');
+          fs.mkdirSync(evidence, { recursive: true });
+          run('make', ['grype-db']);
+          const base = 'b78b1ff2c150a96257a3c8fc5b4ea089c4800374';
+          const cases = [
+            ['vulnerable', '5d187cbd33facc68c3c26c65e222faeddda7a94c'],
+            ['fixed', '4798897d7371de85064c0d01a1472a6dca6af439'],
+          ];
+          for (const [name, head] of cases) {
+            const args = ['pr-gate-local', `BASE=${base}`, `HEAD=${head}`];
+            const result = spawnSync('make', args, { cwd: root, encoding: 'utf8', timeout: 300_000 });
+            if (result.error) throw result.error;
+            const output = `${result.stdout || ''}${result.stderr || ''}`;
+            fs.writeFileSync(path.join(evidence, `${name}.txt`), `# Git 기준: ${base} → ${head}\n# make 종료 코드: ${result.status ?? '없음'}\n${output}`);
+            if (name === 'vulnerable' && (result.status !== 2 || !output.includes('GHSA-xvch-5gv4-984h Critical') || !output.includes('PR 관문: 실패'))) {
+              throw new Error('취약한 minimist 버전의 Git PR 비교가 실패하지 않았습니다.');
+            }
+            if (name === 'fixed' && (result.status !== 0 || !output.includes('PR 관문: 통과'))) {
+              throw new Error('수정한 minimist 버전의 Git PR 비교가 통과하지 않았습니다.');
+            }
+            process.stdout.write(output);
           }
         }
       }
