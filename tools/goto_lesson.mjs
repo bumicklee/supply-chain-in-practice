@@ -24,8 +24,9 @@ const generated = [
   'parts-api/sbom/parts-api.syft.json',
 ];
 const policy = 'policy/triage.yaml';
-if (!['1-1', '2-1', '2-2', '2-3', '2-4', '3-1', '3-2', '4-1'].includes(lesson) || !['start', 'done'].includes(at)) {
-  console.error('사용법: make goto L=1-1|2-1|2-2|2-3|2-4|3-1|3-2|4-1 [AT=done] [FORCE=1]');
+const vex = 'vex/parts-api.openvex.json';
+if (!['1-1', '2-1', '2-2', '2-3', '2-4', '3-1', '3-2', '4-1', '4-2'].includes(lesson) || !['start', 'done'].includes(at)) {
+  console.error('사용법: make goto L=1-1|2-1|2-2|2-3|2-4|3-1|3-2|4-1|4-2 [AT=done] [FORCE=1]');
   console.error('다른 수업의 지점은 아직 구현되지 않았습니다.');
   process.exit(2);
 }
@@ -89,7 +90,7 @@ function recordJson(command, args, output) {
 try {
   const template = path.join(root, 'solutions', 'checkpoints', '1-1');
   const previous = fs.existsSync(stateFile) ? JSON.parse(fs.readFileSync(stateFile, 'utf8')) : null;
-  const changed = [...files, ...generated, policy].filter(rel => {
+  const changed = [...files, ...generated, policy, vex].filter(rel => {
     const expected = previous?.hashes?.[rel] ?? hash(path.join(template, rel));
     return hash(path.join(root, rel)) !== expected;
   });
@@ -115,27 +116,28 @@ try {
 
   run('node', ['tools/compose_id.mjs']);
   run('docker', ['compose', 'down', '-v', '--remove-orphans']);
-  for (const rel of ['.lab/seeded', '.lab/seed.npmrc', '.lab/env', '.lab/markers', '.lab/collector.log', '.lab/npm-cache-2-1', '.lab/lesson-2-3', '.lab/lesson-2-4', '.lab/lesson-3-2', '.lab/lesson-4-1']) remove(rel);
+  for (const rel of ['.lab/seeded', '.lab/seed.npmrc', '.lab/env', '.lab/markers', '.lab/collector.log', '.lab/npm-cache-2-1', '.lab/lesson-2-3', '.lab/lesson-2-4', '.lab/lesson-3-2', '.lab/lesson-4-1', '.lab/lesson-4-2']) remove(rel);
   remove('parts-api/node_modules');
   for (const rel of generated) remove(rel);
   remove(policy);
+  remove(vex);
   for (const rel of files) {
     const destination = path.join(root, rel);
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     fs.copyFileSync(path.join(template, rel), destination);
   }
-  const scopedBase = ['2-3', '2-4', '3-1', '3-2', '4-1'].includes(lesson) || lesson === '2-2' && at === 'done';
+  const scopedBase = ['2-3', '2-4', '3-1', '3-2', '4-1', '4-2'].includes(lesson) || lesson === '2-2' && at === 'done';
   if (scopedBase) {
     for (const rel of files.filter(item => item !== 'parts-api/package-lock.json')) {
       fs.copyFileSync(path.join(root, 'solutions', 'checkpoints', '2-2', rel), path.join(root, rel));
     }
   }
-  if (['2-4', '3-1', '3-2', '4-1'].includes(lesson)) {
+  if (['2-4', '3-1', '3-2', '4-1', '4-2'].includes(lesson)) {
     for (const rel of ['parts-api/package.json', 'parts-api/src/app.js']) {
       fs.copyFileSync(path.join(root, 'solutions', 'checkpoints', '2-4', 'start', rel), path.join(root, rel));
     }
   }
-  if (['3-1', '3-2', '4-1'].includes(lesson)) {
+  if (['3-1', '3-2', '4-1', '4-2'].includes(lesson)) {
     fs.copyFileSync(path.join(root, 'solutions', 'checkpoints', '2-4', 'done', 'parts-api', '.npmrc'), path.join(root, 'parts-api', '.npmrc'));
   }
   if (lesson === '4-1') {
@@ -143,6 +145,16 @@ try {
     const destination = path.join(root, policy);
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     fs.copyFileSync(source, destination);
+  }
+  if (lesson === '4-2') {
+    for (const [rel, source] of [
+      [policy, path.join(root, 'solutions', 'checkpoints', '4-1', 'done', policy)],
+      [vex, path.join(root, 'solutions', 'checkpoints', '4-2', 'start', vex)],
+    ]) {
+      const destination = path.join(root, rel);
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      fs.copyFileSync(source, destination);
+    }
   }
 
   if (at === 'done' || lesson !== '1-1') {
@@ -207,10 +219,11 @@ try {
         if (fs.existsSync(collector) && fs.statSync(collector).size !== 0) throw new Error('스크립트 차단 후 수집기 기록이 새로 생겼습니다.');
         fs.writeFileSync(path.join(evidence, 'collector-after.txt'), '# ignore-scripts=true 뒤 수집기 기록 0바이트\n');
       }
-      if (['3-1', '3-2', '4-1'].includes(lesson)) {
+      if (['3-1', '3-2', '4-1', '4-2'].includes(lesson)) {
         run('npm', ['rebuild', '@parts/fast-hash', '--ignore-scripts=false'], api, env);
         run('npm', ['test'], api, env);
-        if (['3-2', '4-1'].includes(lesson) || at === 'done') {
+        if (lesson === '4-2') run('npm', ['install', 'minimist@0.2.4', '--no-audit', '--no-fund', '--ignore-scripts'], api, env);
+        if (['3-2', '4-1', '4-2'].includes(lesson) || at === 'done') {
           fs.mkdirSync(path.join(api, 'sbom'), { recursive: true });
           run('make', ['sbom']);
         }
@@ -233,6 +246,35 @@ try {
             recordMake(['triage-check'], path.join(lab, 'lesson-4-1', 'triage.txt'));
           }
         }
+        if (lesson === '4-2') {
+          run('make', ['grype-db']);
+          const evidence = path.join(lab, 'lesson-4-2');
+          const sbom = 'sbom:parts-api/sbom/parts-api.syft.json';
+          const target = 'GHSA-35jh-r3h4-6jhm';
+          recordCommand('./bin/grype', [sbom], path.join(evidence, 'scan-before.txt'));
+          recordCommand('./bin/grype', [sbom, '--vex', vex], path.join(evidence, 'investigating.txt'));
+          if (!fs.readFileSync(path.join(evidence, 'investigating.txt'), 'utf8').includes(target)) throw new Error('조사 중 VEX가 lodash 경보를 남기지 않았습니다.');
+          if (at === 'done') {
+            fs.copyFileSync(path.join(root, 'solutions', 'checkpoints', '4-2', 'done', vex), path.join(root, vex));
+            recordMake(['vex-lint'], path.join(evidence, 'lint-ok.txt'));
+            recordCommand('./bin/grype', [sbom, '--vex', vex], path.join(evidence, 'suppressed.txt'));
+            recordCommand('./bin/grype', [sbom, '--vex', vex, '--show-suppressed'], path.join(evidence, 'show-suppressed.txt'));
+            if (fs.readFileSync(path.join(evidence, 'suppressed.txt'), 'utf8').includes(target)) throw new Error('영향 없음 VEX에서 대상 경보가 숨겨지지 않았습니다.');
+            if (!fs.readFileSync(path.join(evidence, 'show-suppressed.txt'), 'utf8').includes(`${target}`) || !fs.readFileSync(path.join(evidence, 'show-suppressed.txt'), 'utf8').includes('(suppressed by VEX)')) throw new Error('숨긴 경보를 다시 보여 주지 못했습니다.');
+            const patch = 'solutions/replay/4-2-template-call.patch';
+            run('git', ['apply', patch]);
+            try {
+              recordCommand('./bin/grype', [sbom, '--vex', vex], path.join(evidence, 'replay-suppressed.txt'));
+              if (fs.readFileSync(path.join(evidence, 'replay-suppressed.txt'), 'utf8').includes(target)) throw new Error('코드에 template 호출을 추가했는데 Grype가 VEX 억제를 유지하지 않았습니다.');
+              const lint = spawnSync('make', ['vex-lint'], { cwd: root, encoding: 'utf8', timeout: 30_000 });
+              fs.writeFileSync(path.join(evidence, 'replay-lint.txt'), `# 명령: make vex-lint (재연 패치 적용 뒤)\n# 종료 코드: ${lint.status ?? '없음'}\n${lint.stdout || ''}${lint.stderr || ''}`);
+              if (lint.status === 0 || !`${lint.stdout}${lint.stderr}`.includes('template 호출 있음')) throw new Error('코드 호출 뒤 낡은 VEX를 검출하지 못했습니다.');
+            } finally {
+              run('git', ['apply', '-R', patch]);
+            }
+            recordMake(['vex-lint'], path.join(evidence, 'lint-restored.txt'));
+          }
+        }
       }
     } else if (lesson === '2-1' && at === 'done' || lesson === '2-2' && at === 'start') {
       run('make', ['attack', 'A=confusion']);
@@ -243,7 +285,7 @@ try {
     }
   }
 
-  const hashes = Object.fromEntries([...files, ...generated, policy].map(rel => [rel, hash(path.join(root, rel))]));
+  const hashes = Object.fromEntries([...files, ...generated, policy, vex].map(rel => [rel, hash(path.join(root, rel))]));
   fs.writeFileSync(stateFile, JSON.stringify({ lesson, at, hashes }, null, 2) + '\n');
   fs.writeFileSync(path.join(lab, 'checkpoint.json'), JSON.stringify({ lesson, at }) + '\n');
   console.log(`지점: ${lesson} ${at === 'done' ? '끝' : '시작'}`);
